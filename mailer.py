@@ -251,9 +251,14 @@ def get_matching_posts(people):
     posts = []
     all_authors = []
     update_day = parse(feed.feed['updated']).astimezone(datetime.timezone.utc).date()
+    pub_day = parse(feed.feed['published']).astimezone(datetime.timezone.utc).date()
     today = datetime.datetime.now(datetime.timezone.utc).date()
     if (update_day - today).days != 0:
         log.warn(f"Mailer was invoked but feed was last updated on {update_day} UTC")
+        sys.exit(1)
+    if (pub_day - today).days != 0:
+        log.warn(f"Mailer was invoked but content in feed was last " +
+                 f"published on {pub_day} UTC")
         sys.exit(1)
     for post in feed.entries:
         unpacked_post = unpack_feed_entry(post, people)

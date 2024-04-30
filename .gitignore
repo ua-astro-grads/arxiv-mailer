@@ -6,5 +6,5 @@ __pycache__
 .pytest_cache
 *.pickle
 test.sh
-run_mailer.sh
+run_mailer*.sh
 logs/
