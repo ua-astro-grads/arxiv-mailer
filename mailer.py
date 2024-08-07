@@ -25,7 +25,7 @@ import tarfile
 import io
 
 log = logging.getLogger(__name__)
-DEMO_MODE = True
+DEMO_MODE = False
 
 HERE = os.path.dirname(__file__)
 
