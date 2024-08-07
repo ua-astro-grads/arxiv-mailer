@@ -34,9 +34,7 @@ Anyway, I would suggest:
 1. Get the code and install the dependencies
 2. Either edit the global or use the '-d' command line arg to run in DEMO_MODE to check the feed-parsing and email-generating, but not the email-sending
 3. Get the credentials set up for outgoing mail
-4. We can change the list config here
-
-so that outbound email gets stopped at the list during testing.
+4. We can change the list config here so that outbound email gets stopped at the list during testing.
 5. Test your config to make sure messages get to the list
 6. Set up scheduled task on your desktop or a Steward server (with crontab or SystemD timers as you prefer)
 7. We change the list config back so your messages go straight through without going to a queue
