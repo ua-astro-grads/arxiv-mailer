@@ -71,38 +71,70 @@ def normalize_caseless(text):
 
 def build_directory():
     people = {}
+    base_link = 'https://astro.arizona.edu'
 
-    faculty_page = soupify('https://www.as.arizona.edu/people/faculty')
-    for facwrap in faculty_page.select('.faculty_wrapper'):
-        name_parts = tuple(normalize_caseless(part.strip()) for part in facwrap.select_one('h4').text.split(',', 1))
-        people[name_parts] = {
+    faculty_page = soupify('https://astro.arizona.edu/people/all-faculty')
+    for facwrap in faculty_page.select('.card-body'):
+        name = tuple(filter(None, facwrap.select_one('h1').text.split('\n')))
+        name = tuple(normalize_caseless(part.strip()) for part in name)[::-1] # lower case and reverse order
+
+        # retrieve link to individual page
+        ind_page_link = facwrap.find_all('a', href=True)[0]['href']
+        ind_page = soupify(base_link + ind_page_link)
+
+        # get position
+        position = ind_page.find_all("div", class_="field--name-field-az-titles")[0].text.replace('\n', '')
+        # get image
+        image = base_link + ind_page.select('article')[0].select_one('img')['src']
+
+        people[name]= {
             'role': FACULTY,
-            'position': facwrap.select_one('h5').text,
-            'image': facwrap.select_one('img')['src'].rsplit('?', 1)[0]
+            'position': position,
+            'image': image, 
         }
 
-    postdoc_page = soupify('https://www.as.arizona.edu/people/postdoctoral')
-    for wrap in postdoc_page.select('.view-people tr'):
-        name_parts = tuple(normalize_caseless(part.strip()) for part in wrap.select_one('h4').text.split(',', 1))
-        if wrap.select_one('h5') is not None:
-            position = wrap.select_one('h5').text
-        else:
-            position = ''
-        people[name_parts] = {
+    postdoc_page = soupify('https://astro.arizona.edu/people/postdocs')
+    for wrap in postdoc_page.select('.card-body'):
+        name = tuple(wrap.select('h3')[0].text.replace('\n', '').split(' ', 1))
+        name = tuple(normalize_caseless(part.strip()) for part in name)[::-1] # lower case and reverse order
+
+        # retrieve link to individual page
+        ind_page_link = wrap.find_all('a', href=True)[0]['href']
+        ind_page = soupify(base_link + ind_page_link)
+
+        # get position
+        try:
+            position = ind_page.find_all("div", class_="field--name-field-az-titles")[0].text.replace('\n', '')
+        except:
+            continue
+        
+        # get image
+        image = base_link + ind_page.select('article')[0].select_one('img')['src']
+
+        people[name]= {
             'role': POSTDOC,
             'position': position,
-            'image': wrap.select_one('img')['src'].rsplit('?', 1)[0]
+            'image': image,
         }
 
-    student_page = soupify('https://www.as.arizona.edu/people/grad_students')
-    for wrap in student_page.select('.view-people tr'):
-        first_names, last_name = tuple(normalize_caseless(part.strip()) for part in wrap.select_one('h4').text.rsplit(' ', 1))
-        past_degrees = wrap.select_one('h5')
-        people[(last_name, first_names)] = {
+    student_page = soupify('https://astro.arizona.edu/people/graduate-students')
+    for wrap in student_page.select('.card-body'):
+        name = tuple(filter(None, wrap.select_one('h1').text.split('\n')))
+        name = tuple(normalize_caseless(part.strip()) for part in name)[::-1] #case and reverse order
+
+        # retrieve link to individual page
+        ind_page_link = wrap.find_all('a', href=True)[0]['href']
+        ind_page = soupify(base_link + ind_page_link)
+
+        # get image
+        image = base_link + ind_page.select('article')[0].select_one('img')['src']
+
+        people[name]= {
             'role': STUDENT,
-            'position': past_degrees.text if past_degrees is not None else '',
-            'image': wrap.select_one('img')['src'].rsplit('?', 1)[0]
+            'position': 'Graduate Student',
+            'image': image,
         }
+
     return people
 
 NAME_RE = re.compile(r'^(?P<first>(?:(?P<initial>\w).*)[\. ]+)+(?P<last>\w.*)$')
