@@ -34,7 +34,7 @@
     {% set area_color = "#444444" %}
     {% endif %}
     <hr>
-    <h1 style="font-size: {{ font_size_reg }}px;"><a href="https://arxiv.org/abs/{{ post.arxiv_id }}">{{ post.title }}</a></h1>
+    <h1 style="font-size: {{ font_size_reg }}px;"><a href="https://arxiv.org/abs/{{ post.arxiv_id }}" style="text-decoration:none">{{ post.title }}</a></h1>
     <h2 style="font-size: {{ font_size_reg - 4}}px; font-weight: normal;">
     <a href="https://arxiv.org/list/astro-ph.{{ area }}/recent" style="{{ button_styles }} color: white; background-color: {{ area_color }};">{{ area_desc }}</a>
         <a href="https://arxiv.org/pdf/{{ post.arxiv_id }}" style="{{ button_styles }} border-color: {{ area_color }}; color: {{ area_color }}; background: #eee;">View PDF</a>

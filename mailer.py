@@ -102,7 +102,7 @@ def build_directory():
             'role': FACULTY,
             'position': position,
             'image': image, 
-            'page': ind_page,
+            'page': base_link + ind_page_link,
         }
 
     postdoc_page = soupify('https://astro.arizona.edu/people/postdocs')
@@ -132,7 +132,7 @@ def build_directory():
             'role': POSTDOC,
             'position': position,
             'image': image,
-            'page': ind_page,
+            'page': base_link + ind_page_link,
         }
 
     student_page = soupify('https://astro.arizona.edu/people/graduate-students')
@@ -155,7 +155,7 @@ def build_directory():
             'role': STUDENT,
             'position': 'Graduate Student',
             'image': image,
-            'page': ind_page,
+            'page': base_link + ind_page_link,
         }
 
     return people
