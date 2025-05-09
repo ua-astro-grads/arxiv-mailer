@@ -1,8 +1,9 @@
-There's a handful of dependencies, and I don't have a requirements file or anything, but:
-
-        pip install BeautifulSoup4 requests jinja2 feedparser
-
-should cover it. You probably have all of them already, except perhaps feedparser.
+Install requirements in a python venv
+```
+python3 -m venv mailer_env
+source mailer_env/bin/activate
+python3 -m pip install -r requirements.txt
+```
 
 Use your favorite tool to schedule it to run, on a computer that stays on/online (maybe CSG has a server you can borrow?) I had the timer set to run Mon,Tue,Wed,Thu,Fri \*-\*-\* 11:00:00 UTC. You will need to set a few environment variables (described below, Step 4).
 
