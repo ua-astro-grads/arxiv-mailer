@@ -252,12 +252,12 @@ def unpack_feed_entry(post, people):
         BeautifulSoup(post.author, features="lxml").text.split(',')]
     authors = [(name, approximate_name_lookup(name, people)) for name in author_names]
     our_people_score = sum(item[1][1] for item in authors)
-    if our_people_score < 1 and not DEMO_MODE:
+    if our_people_score < 1:
         return
     else:
         log.info(f"Found {our_people_score=} from {authors=}")
     arxiv_id = post.link.rsplit('/', 1)[1]
-    if not DEMO_MODE:
+    if not DEMO_MODE or DEMO_MODE:
         evidence, gather_success = gather_affiliation_evidence(arxiv_id)
         if gather_success and evidence == 0:
             log.debug(f'Skipping {arxiv_id=} for lack of evidence: {our_people_score=} {evidence=}')
@@ -401,7 +401,7 @@ def main():
     # Compose the email
     from_addr_spec = os.environ['MAIL_USERNAME'] if not DEMO_MODE else 'astro-stewarxiv@list.arizona.edu'
     from_addr = Address("StewarXiv", addr_spec=from_addr_spec)
-    to_addr_spec = os.environ['MAIL_SENDTO'] if not DEMO_MODE else 'astro-stewarxiv@list.arizona.edu'
+    to_addr_spec = os.environ['MAIL_SENDTO'] if not DEMO_MODE else 'nfranz@arizona.edu'
     to_addrs = [
         Address("StewarXiv", addr_spec=to_addr_spec)
     ]
