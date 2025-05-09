@@ -1,4 +1,20 @@
-Install requirements in a python venv
+# Run through docker
+```
+mkdir logs
+docker run \
+	-e MAIL_USERNAME=<username> \
+	-e MAIL_PASSWORD=<password> \
+	-v logs:/arxiv-mailer/logs \
+	noahfranz13/stewarxiv:v0.1
+```
+
+# Development: Building the docker container
+After making changes run
+```
+docker build -t stewarxiv:v....
+```
+
+# Install requirements in a python venv
 ```
 python3 -m venv mailer_env
 source mailer_env/bin/activate
