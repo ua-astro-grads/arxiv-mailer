@@ -86,7 +86,11 @@ def build_directory():
         ind_page = soupify(base_link + ind_page_link)
 
         # get position
-        position = ind_page.find_all("div", class_="field--name-field-az-titles")[0].text.replace('\n', '')
+        try:
+            position = ind_page.find_all("div", class_="field--name-field-az-titles")[0].text.replace('\n', '')
+        except Exception as e:
+            log.warning(f"Failed to get position for {name}")
+            continue
         # get image
         try:
             image = base_link + ind_page.select('article')[0].select_one('img')['src']
@@ -98,6 +102,7 @@ def build_directory():
             'role': FACULTY,
             'position': position,
             'image': image, 
+            'page': ind_page,
         }
 
     postdoc_page = soupify('https://astro.arizona.edu/people/postdocs')
@@ -112,7 +117,8 @@ def build_directory():
         # get position
         try:
             position = ind_page.find_all("div", class_="field--name-field-az-titles")[0].text.replace('\n', '')
-        except:
+        except Exception as e:
+            log.warning(f"Failed to get position for {name}")
             continue
         
         # get image
@@ -126,6 +132,7 @@ def build_directory():
             'role': POSTDOC,
             'position': position,
             'image': image,
+            'page': ind_page,
         }
 
     student_page = soupify('https://astro.arizona.edu/people/graduate-students')
@@ -148,6 +155,7 @@ def build_directory():
             'role': STUDENT,
             'position': 'Graduate Student',
             'image': image,
+            'page': ind_page,
         }
 
     return people
