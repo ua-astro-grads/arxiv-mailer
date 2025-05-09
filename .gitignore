@@ -9,3 +9,4 @@ test.sh
 run_mailer*.sh
 logs/
 credentials.sh
+config.py

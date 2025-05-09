@@ -24,6 +24,9 @@ import requests
 import tarfile
 import io
 
+# import global config variables
+from config import *
+
 log = logging.getLogger(__name__)
 DEMO_MODE = False
 
@@ -339,10 +342,10 @@ def compose_email(from_address, to_addresses, subject, html_mailing, text_mailin
     return msg
 
 def send_email(msg):
-    host = os.environ['MAIL_SERVER']
-    port = int(os.environ['MAIL_PORT'])
-    user = os.environ['MAIL_USERNAME']
-    password = os.environ['MAIL_PASSWORD']
+    host = MAIL_SERVER
+    port = int(MAIL_PORT)
+    user = MAIL_USERNAME
+    password = MAIL_PASSWORD
 
     # only TLSv1 or higher
     context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
@@ -399,9 +402,9 @@ def main():
             f.write(text_mailing)
 
     # Compose the email
-    from_addr_spec = os.environ['MAIL_USERNAME'] if not DEMO_MODE else 'astro-stewarxiv@list.arizona.edu'
+    from_addr_spec = MAIL_USERNAME if not DEMO_MODE else 'astro-stewarxiv@list.arizona.edu'
     from_addr = Address("StewarXiv", addr_spec=from_addr_spec)
-    to_addr_spec = os.environ['MAIL_SENDTO'] if not DEMO_MODE else 'nfranz@arizona.edu'
+    to_addr_spec = MAIL_SENDTO if not DEMO_MODE else 'nfranz@arizona.edu'
     to_addrs = [
         Address("StewarXiv", addr_spec=to_addr_spec)
     ]
