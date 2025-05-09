@@ -127,7 +127,7 @@ def build_directory():
         ind_page = soupify(base_link + ind_page_link)
 
         # get image
-        image = base_link + ind_page.select('article')[0].select_one('img')['src']
+        image = None #base_link + ind_page.select('article')[0].select_one('img')['src']
 
         people[name]= {
             'role': STUDENT,
