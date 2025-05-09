@@ -12,8 +12,10 @@ WORKDIR arxiv-mailer
 
 # setup the virtual environment
 RUN pip install --upgrade pip
-RUN python3 -m venv mailer_env
-RUN source mailer_env/bin/activate
 RUN python3 -m pip install -r requirements.txt
 
-# Run the mailer
+# setup the environment variables for the mailer
+RUN cp config.py.template config.py
+
+# run the mailer
+CMD python3 mailer.py
