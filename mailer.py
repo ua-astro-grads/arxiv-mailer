@@ -88,7 +88,11 @@ def build_directory():
         # get position
         position = ind_page.find_all("div", class_="field--name-field-az-titles")[0].text.replace('\n', '')
         # get image
-        image = base_link + ind_page.select('article')[0].select_one('img')['src']
+        try:
+            image = base_link + ind_page.select('article')[0].select_one('img')['src']
+        except Exception as e:
+            log.warning(f"Unable to find image for {name}")
+            image = None
 
         people[name]= {
             'role': FACULTY,
@@ -112,7 +116,11 @@ def build_directory():
             continue
         
         # get image
-        image = base_link + ind_page.select('article')[0].select_one('img')['src']
+        try:
+            image = base_link + ind_page.select('article')[0].select_one('img')['src']
+        except Exception as e:
+            log.warning(f"Unable to find image for {name}")
+            image = None
 
         people[name]= {
             'role': POSTDOC,
@@ -130,7 +138,11 @@ def build_directory():
         ind_page = soupify(base_link + ind_page_link)
 
         # get image
-        image = None #base_link + ind_page.select('article')[0].select_one('img')['src']
+        try:
+            image = base_link + ind_page.select('article')[0].select_one('img')['src']
+        except Exception as e:
+            log.warning(f"Unable to find image for {name}")
+            image = None
 
         people[name]= {
             'role': STUDENT,
