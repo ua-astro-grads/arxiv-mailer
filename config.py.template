@@ -1,5 +1,7 @@
 """
 A template of the config variables for the mailer
+
+TODO: copy into config.py and edit mail information
 """
 
 MAIL_SERVER="smtp.gmail.com"
