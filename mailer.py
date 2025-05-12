@@ -41,6 +41,7 @@ def soupify(url):
 
 FACULTY = 1
 POSTDOC = 2
+STAFF = 2
 STUDENT = 3
 
 
@@ -153,6 +154,29 @@ def build_directory():
 
         people[name]= {
             'role': STUDENT,
+            'position': 'Graduate Student',
+            'image': image,
+            'page': base_link + ind_page_link,
+        }
+
+    staff_page = soupify('https://astro.arizona.edu/people/staff')
+    for wrap in staff_page.select('.card-body'):
+        name = tuple(filter(None, wrap.select_one('h1').text.split('\n')))
+        name = tuple(normalize_caseless(part.strip()) for part in name)[::-1] #case and reverse order
+
+        # retrieve link to individual page
+        ind_page_link = wrap.find_all('a', href=True)[0]['href']
+        ind_page = soupify(base_link + ind_page_link)
+
+        # get image
+        try:
+            image = base_link + ind_page.select('article')[0].select_one('img')['src']
+        except Exception as e:
+            log.warning(f"Unable to find image for {name}")
+            image = None
+
+        people[name]= {
+            'role': STAFF,
             'position': 'Graduate Student',
             'image': image,
             'page': base_link + ind_page_link,
