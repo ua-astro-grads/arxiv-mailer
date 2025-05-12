@@ -177,7 +177,7 @@ def build_directory():
 
         people[name]= {
             'role': STAFF,
-            'position': 'Graduate Student',
+            'position': 'Staff',
             'image': image,
             'page': base_link + ind_page_link,
         }
