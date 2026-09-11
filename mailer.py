@@ -28,7 +28,7 @@ import io
 from config import *
 
 log = logging.getLogger(__name__)
-DEMO_MODE = False
+DEMO_MODE = True
 
 HERE = os.path.dirname(__file__)
 
@@ -460,7 +460,7 @@ def main():
             f.write(text_mailing)
 
     # Compose the email
-    from_addr_spec = MAIL_USERNAME if not DEMO_MODE else 'astro-stewarxiv@list.arizona.edu'
+    from_addr_spec = MAIL_USERNAME if not DEMO_MODE else 'stewarxiv@gmail.com'
     from_addr = Address("StewarXiv", addr_spec=from_addr_spec)
     # decide who to send to depending on content or demoing
     if not DEMO_MODE and len(posts) > 0:
