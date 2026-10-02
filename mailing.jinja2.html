@@ -48,13 +48,13 @@
 	      {% include "author.jinja2.html" %}{% if not loop.last %},{% endif %}
 	  {% endfor %}
 	  et al. (with {{ post.authors[20:]|count }} other authors
-	  {% set incl=False %}
+	  {% set incl = namespace(shown=False) %}
 	  {% for author in post.authors[20:] %}
 	      {% with name = author[0]|replace(" ", "&nbsp;")|safe, key = author[1][0], score = author[1][1] %}
                {% if key %}
-	          {% if not incl %}
+	          {% if not incl.shown %}
                       incl.
-                      {% set incl=True %}
+                      {% set incl.shown = True %}
 	          {% endif %}
 	          {% include "author.jinja2.html" %}
               {% endif %}
