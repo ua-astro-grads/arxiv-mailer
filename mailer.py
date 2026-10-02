@@ -201,24 +201,11 @@ def build_directory():
     return people
 
 NAME_RE = re.compile(r'^(?P<first>(?:(?P<initial>\w).*)[\. ]+)+(?P<last>\w.*)$')
-def test_name_regex():
-    assert NAME_RE.match('J.Long').groupdict() == {'first': 'J.', 'initial': 'J', 'last': 'Long'}
-    assert NAME_RE.match('Joseph D. Long').groupdict() == {'first': 'Joseph D. ', 'initial': 'J', 'last': 'Long'}
-    assert NAME_RE.match('J. D. Long').groupdict() == {'first': 'J. D. ', 'initial': 'J', 'last': 'Long'}
-    assert NAME_RE.match('J Long').groupdict() == {'first': 'J ', 'initial': 'J', 'last': 'Long'}
 INITIAL_RE = re.compile(r'^\w(\.|\s|$)')
-def test_initial_regex():
-    assert INITIAL_RE.match('J. D.')
-    assert not INITIAL_RE.match('Jo. D.')
-    assert INITIAL_RE.match('J.D.')
-    assert INITIAL_RE.match('J')
-    assert INITIAL_RE.match('J D')
 
 ALL_INITIALS_RE = re.compile(r'\b\w\.?\s')
 def strip_initials(names):
     return ' '.join(ALL_INITIALS_RE.sub('', names).split())
-def test_strip_initials():
-    assert strip_initials('J. Long') == 'Long'
 
 def approximate_name_lookup(name, people):
     # normalize at input boundary so comparisons are simply ==
@@ -262,17 +249,6 @@ def approximate_name_lookup(name, people):
             return (person_last, person_first), score
     return None, 0
 
-def test_approximate_name_lookup():
-    people = {
-        ('dave', 'a. bob c.'): None,
-        ('ferris', 'edgar'): None,
-        ('hausschuh', 'georgina'): None,
-        ('rodrigo', 'marco navarro'): None
-    }
-    assert approximate_name_lookup('edgar ferris', people) == (('ferris', 'edgar'), 2)
-    assert approximate_name_lookup('bob dave', people) == (('dave', 'a. bob c.'), 2)
-    assert approximate_name_lookup('G. Hausschuh', people) == (('hausschuh', 'georgina'), 1)
-    assert approximate_name_lookup('{M. Navarro Rodrigo}', people) == (('rodrigo', 'marco navarro'), 1)
 
 UOFA_RE = re.compile(r'(university of arizona|steward observatory|arizona\.edu|lbto\.org|gmto\.org)', flags=re.IGNORECASE)
 

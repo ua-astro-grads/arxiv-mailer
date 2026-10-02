@@ -59,6 +59,15 @@ Anyway, I would suggest:
 9. Go to sleep and hope for the best the next day!
 
 
+## Running tests
+The tests live in `tests/`. Run them from the repo root with
+```
+python -m pytest
+```
+(use `python -m pytest` rather than plain `pytest` so the tests can import `mailer.py`). They need a `config.py` in the repo root, same as running the mailer. Install pytest into your environment first if needed (`python -m pip install pytest`).
+
+Known failure: `test_approximate_name_lookup` currently fails on the `'bob dave'` case (it's not matched to `('dave', 'a. bob c.')`).
+
 ## Development Workflow (Vikram)
 
 1. Load mailer environment
