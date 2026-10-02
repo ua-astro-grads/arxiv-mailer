@@ -1,12 +1,14 @@
 {% with name = author[0]|replace(" ", "&nbsp;")|safe, key = author[1][0], score = author[1][1] %}
 {% if key %}
   <div style="display:inline-block; vertical-align:middle; margin:2px;">
+    {% if people[key]['thumb_cid'] %}
     <a href="{{ people[key]['image'] }}" style="text-decoration:none;">
-      <img src="{{ people[key]['image'] }}"
+      <img src="cid:{{ people[key]['thumb_cid'] }}"
            width="40" height="40"
            style="border-radius:50%; vertical-align:middle; margin-right:4px;"
            alt="Portrait of {{ name }}">
     </a>
+    {% endif %}
     <span style="font-weight:bold; vertical-align:middle;">
       <a href="{{ people[key]['page'] }}" style="text-decoration:none; color:inherit;">
         {{ name }}
