@@ -28,7 +28,7 @@ import io
 from config import *
 
 log = logging.getLogger(__name__)
-DEMO_MODE = True
+DEMO_MODE = False
 
 HERE = os.path.dirname(__file__)
 
@@ -318,7 +318,7 @@ def unpack_feed_entry(post, people):
     else:
         log.info(f"Found {our_people_score=} from {authors=}")
     arxiv_id = post.link.rsplit('/', 1)[1]
-    if not DEMO_MODE or DEMO_MODE:
+    if not DEMO_MODE:
         evidence, gather_success = gather_affiliation_evidence(arxiv_id)
         if gather_success and evidence == 0:
             log.debug(f'Skipping {arxiv_id=} for lack of evidence: {our_people_score=} {evidence=}')
