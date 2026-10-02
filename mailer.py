@@ -23,6 +23,8 @@ import jinja2
 import requests
 import tarfile
 import io
+import base64
+from PIL import Image, ImageDraw, ImageOps
 
 # import global config variables
 from config import *
@@ -367,6 +369,46 @@ def get_matching_posts(people):
 
     return posts, all_authors
 
+# headshots are shown at 40x40, so render at 2x for high-DPI screens
+THUMB_SIZE = 80
+
+def make_thumbnail(url):
+    # crop to a centered square (biased up toward the face) instead of
+    # letting the email client stretch it, then bake in a circular mask so
+    # it's round even in clients that ignore border-radius (Outlook)
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        res = requests.get(url, verify=False, timeout=30)
+    res.raise_for_status()
+    img = Image.open(io.BytesIO(res.content)).convert('RGBA')
+    thumb = ImageOps.fit(img, (THUMB_SIZE, THUMB_SIZE), centering=(0.5, 0.3))
+    # draw the mask at 4x and downsample for anti-aliased edges
+    mask = Image.new('L', (4 * THUMB_SIZE, 4 * THUMB_SIZE), 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, 4 * THUMB_SIZE - 1, 4 * THUMB_SIZE - 1), fill=255)
+    thumb.putalpha(mask.resize((THUMB_SIZE, THUMB_SIZE), Image.LANCZOS))
+    # 256-color palette PNG keeps transparency at ~1/3 the size of full color
+    buff = io.BytesIO()
+    thumb.quantize(256).save(buff, 'PNG', optimize=True)
+    return buff.getvalue()
+
+def build_thumbnails(all_authors):
+    # returns {cid: png bytes} and sets 'thumb_cid' on each author with a
+    # thumbnail, which the template uses to reference the inline image
+    thumbnails = {}
+    for person in all_authors:
+        if 'thumb_cid' in person or not person['image']:
+            continue
+        try:
+            png = make_thumbnail(person['image'])
+        except Exception as e:
+            log.warning(f"Unable to make thumbnail from {person['image']}: {e}")
+            continue
+        cid = make_msgid(domain='stewarxiv')[1:-1]  # strip the <>
+        person['thumb_cid'] = cid
+        thumbnails[cid] = png
+    return thumbnails
+
 env = jinja2.Environment(
     loader=jinja2.FileSystemLoader(os.path.dirname(__file__)),
     autoescape=jinja2.select_autoescape(['html', 'xml'])
@@ -385,7 +427,7 @@ from email.headerregistry import Address
 from email.utils import make_msgid
 
 def compose_email(from_address, to_addresses, subject, html_mailing, text_mailing,
-    cc_addresses=None):
+    cc_addresses=None, thumbnails=None):
     msg = EmailMessage()
     msg['Subject'] = subject
     msg['From'] = from_address
@@ -394,6 +436,11 @@ def compose_email(from_address, to_addresses, subject, html_mailing, text_mailin
         msg['CC'] = cc_addresses
     msg.set_content(text_mailing)
     msg.add_alternative(html_mailing, subtype='html')
+    # attach headshots inline (multipart/related) so the html can show them
+    # with src="cid:..." without fetching anything remotely
+    html_part = msg.get_payload()[1]
+    for cid, png in (thumbnails or {}).items():
+        html_part.add_related(png, 'image', 'png', cid=f'<{cid}>')
     if DEMO_MODE:
         with open('mailing.eml', 'wb') as f:
             f.write(bytes(msg))
@@ -452,10 +499,16 @@ def main():
             with open('./demo.pickle', 'wb') as f:
                 pickle.dump(context, f)
 
+    thumbnails = build_thumbnails(all_authors)
     html_mailing, text_mailing = render_mailing(context)
     if DEMO_MODE:
+        # browsers can't resolve cid: links, so inline the images for preview
+        preview_html = html_mailing
+        for cid, png in thumbnails.items():
+            data_uri = 'data:image/png;base64,' + base64.b64encode(png).decode()
+            preview_html = preview_html.replace(f'cid:{cid}', data_uri)
         with open(os.path.join(HERE, 'mailing.html'), 'w') as f:
-            f.write(html_mailing)
+            f.write(preview_html)
         with open(os.path.join(HERE, 'mailing.txt'), 'w') as f:
             f.write(text_mailing)
 
@@ -470,7 +523,7 @@ def main():
     subject = f'{day_of_week}\'s update: {len(posts)} {"preprint" if len(posts) == 1 else "preprints"} from {len(all_authors)} {"colleague" if len(all_authors) == 1 else "colleagues"}'
     # Compose the email (also CC the sender of the email)
     msg = compose_email(from_addr, to_addrs, subject, html_mailing, text_mailing,
-        cc_addresses=from_addr)
+        cc_addresses=from_addr, thumbnails=thumbnails)
     # Send the email
     send_email(msg)
 
