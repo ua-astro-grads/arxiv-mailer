@@ -1,4 +1,4 @@
-from mailer import NAME_RE, INITIAL_RE, strip_initials, approximate_name_lookup
+from stewarxiv.names import NAME_RE, INITIAL_RE, strip_initials, approximate_name_lookup
 
 
 def test_name_regex():
