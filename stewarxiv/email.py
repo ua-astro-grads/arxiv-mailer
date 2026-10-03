@@ -6,7 +6,6 @@ from email.message import EmailMessage
 
 import jinja2
 
-import stewarxiv
 # import global config variables
 from config import *
 
@@ -46,9 +45,6 @@ def compose_email(from_address, to_addresses, subject, html_mailing, text_mailin
     html_part = msg.get_payload()[1]
     for cid, png in (thumbnails or {}).items():
         html_part.add_related(png, 'image', 'png', cid=f'<{cid}>')
-    if stewarxiv.DEMO_MODE:
-        with open('mailing.eml', 'wb') as f:
-            f.write(bytes(msg))
     return msg
 
 def send_email(msg):

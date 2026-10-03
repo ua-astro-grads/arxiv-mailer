@@ -27,7 +27,7 @@ Here's what the script does. `mailer.py` runs these steps in order; the code for
 
 1. Build the personnel directory from the department website. If you've ever done web scraping before, it is straightforward code, but (as long as it's working) not important exactly how it accomplishes that. It grabs names (used as a dict key in the form (last_name, first_names)), headshot ('image'), and role (fac, postdoc, student). Code: `stewarxiv/directory.py`
 
-2. Fetch the arxiv RSS feed and filter it (get_matching_posts in `stewarxiv/feed.py`). The maybe confusingly named "unpack_feed_entry" returns None when there is not enough evidence that this is UofA people.
+2. Fetch the arxiv RSS feed (fetch_feed), stop if it wasn't updated today (feed_is_fresh), and filter it (get_matching_posts), all in `stewarxiv/feed.py`. The maybe confusingly named "unpack_feed_entry" returns None when there is not enough evidence that this is UofA people.
 
         2.a. This is where it gets a little hairy: approximate_name_lookup (`stewarxiv/names.py`) gives a score of 0, 1, or 2 based on the criteria commented there.
         2.b. If a score of 1 or greater is found, it goes to inspect the evidence.
@@ -44,14 +44,14 @@ Here's what the script does. `mailer.py` runs these steps in order; the code for
 
 4. Send the email (send_email in `stewarxiv/email.py`): The script reads environment variables $MAIL_SERVER $MAIL_PORT $MAIL_USERNAME and $MAIL_PASSWORD (so you don't have to have those in the script itself). You have to use the CatMail secondary password and SMTP settings from here https://uarizona.service-now.com/sp?id=kb_article_view&sysparm_article=KB0010181
 
-There's a big global `DEMO_MODE` at the top of `mailer.py` that switches off the actual mailing and switches on writing a ".eml" file. Since emails are plain text, this will just open in your mail client, and is a good way to preview what your changes look like.
+Running `python mailer.py -d` (or `--demo`) turns on demo mode, which skips the affiliation check, sends only to the admin address instead of the list, and writes the mailing to "mailing.html", "mailing.txt" and "mailing.eml". Since emails are plain text, the .eml file will just open in your mail client, and is a good way to preview what your changes look like. Run `python mailer.py --help` to see the options.
 
 The demo mode also pickles some data structures, which can be useful if you want to speed up your own iteration time working on a bug fix. This also persists the given day's matching posts, which means you can keep a pickle from a day with UofA papers and work on the script on a day without them, iirc. Should be basically transparent, and you can always remove demo.pickle if you change the data structure or need to refresh it for any reason.
 
 Anyway, I would suggest:
 
 1. Get the code and install the dependencies
-2. Either edit the global or use the '-d' command line arg to run in DEMO_MODE to check the feed-parsing and email-generating, but not the email-sending
+2. Use the '-d' command line arg to run in demo mode to check the feed-parsing and email-generating, but not the email-sending
 3. Get the credentials set up for outgoing mail
 4. We can change the list config here so that outbound email gets stopped at the list during testing.
 5. Test your config to make sure messages get to the list

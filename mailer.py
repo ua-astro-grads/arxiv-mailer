@@ -3,6 +3,7 @@
 
 The pipeline steps live in the stewarxiv/ package; see the README for a map.
 """
+import argparse
 import datetime
 import os
 import os.path
@@ -14,9 +15,8 @@ from email.headerregistry import Address
 
 from dateutil import tz
 
-import stewarxiv
 from stewarxiv.directory import build_directory
-from stewarxiv.feed import get_matching_posts
+from stewarxiv.feed import fetch_feed, feed_is_fresh, get_matching_posts
 from stewarxiv.thumbnails import build_thumbnails
 from stewarxiv.email import render_mailing, compose_email, send_email
 
@@ -24,24 +24,22 @@ from stewarxiv.email import render_mailing, compose_email, send_email
 from config import *
 
 log = logging.getLogger(__name__)
-DEMO_MODE = False
 
 HERE = os.path.dirname(__file__)
 
 def main():
-    global DEMO_MODE
     run_time = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
     tzmst = tz.gettz('America/Phoenix')
     run_time_local = run_time.astimezone(tzmst)
     day_of_week = run_time_local.strftime('%A')
 
-    if len(sys.argv) > 1:
-        args = sys.argv[1:]
-        if '-d' in args:
-            DEMO_MODE = True
-    # the pipeline steps in stewarxiv/ read the flag from there
-    stewarxiv.DEMO_MODE = DEMO_MODE
-    if DEMO_MODE and os.path.exists('./demo.pickle'):
+    parser = argparse.ArgumentParser(description="Email today's astro-ph postings by UofA people.")
+    parser.add_argument('-d', '--demo', action='store_true',
+        help="demo mode: skip the affiliation check, reuse/save demo.pickle, write "
+             "mailing.html/.txt/.eml, and send only to the admin address")
+    args = parser.parse_args()
+    demo_mode = args.demo
+    if demo_mode and os.path.exists('./demo.pickle'):
         with open('./demo.pickle', 'rb') as f:
             context = pickle.load(f)
             # define locals from pickle
@@ -53,7 +51,10 @@ def main():
             context['day_of_week'] = day_of_week
     else:
         people = build_directory()
-        posts, all_authors = get_matching_posts(people)
+        feed = fetch_feed()
+        if not feed_is_fresh(feed):
+            sys.exit(1)
+        posts, all_authors = get_matching_posts(feed, people, check_affiliation=not demo_mode)
         context = {
             'people': people,
             'posts': posts,
@@ -61,13 +62,13 @@ def main():
             'run_time': run_time_local.strftime('%Y-%m-%d %H:%M %Z'),
             'day_of_week': day_of_week,
         }
-        if DEMO_MODE:
+        if demo_mode:
             with open('./demo.pickle', 'wb') as f:
                 pickle.dump(context, f)
 
     thumbnails = build_thumbnails(all_authors)
     html_mailing, text_mailing = render_mailing(context)
-    if DEMO_MODE:
+    if demo_mode:
         # browsers can't resolve cid: links, so inline the images for preview
         preview_html = html_mailing
         for cid, png in thumbnails.items():
@@ -79,10 +80,10 @@ def main():
             f.write(text_mailing)
 
     # Compose the email
-    from_addr_spec = MAIL_USERNAME if not DEMO_MODE else 'stewarxiv@gmail.com'
+    from_addr_spec = MAIL_USERNAME if not demo_mode else 'stewarxiv@gmail.com'
     from_addr = Address("StewarXiv", addr_spec=from_addr_spec)
     # decide who to send to depending on content or demoing
-    if not DEMO_MODE and len(posts) > 0:
+    if not demo_mode and len(posts) > 0:
         to_addrs = [Address("StewarXiv", addr_spec=MAIL_SENDTO)]
     else:
         to_addrs = [Address("ADMIN", addr_spec=MAIL_USERNAME)]
@@ -90,6 +91,9 @@ def main():
     # Compose the email (also CC the sender of the email)
     msg = compose_email(from_addr, to_addrs, subject, html_mailing, text_mailing,
         cc_addresses=from_addr, thumbnails=thumbnails)
+    if demo_mode:
+        with open('mailing.eml', 'wb') as f:
+            f.write(bytes(msg))
     # Send the email
     send_email(msg)
 
