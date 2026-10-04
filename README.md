@@ -25,7 +25,7 @@ Use your favorite tool to schedule it to run, on a computer that stays on/online
 
 Here's what the script does. `mailer.py` runs these steps in order; the code for each step lives in the `stewarxiv/` package:
 
-1. Build the personnel directory from the department website. If you've ever done web scraping before, it is straightforward code, but (as long as it's working) not important exactly how it accomplishes that. It grabs names (used as a dict key in the form (last_name, first_names)), headshot ('image'), and role (fac, postdoc, student). Code: `stewarxiv/directory.py`
+1. Build the personnel directory from the department website. If you've ever done web scraping before, it is straightforward code, but (as long as it's working) not important exactly how it accomplishes that. It grabs names (used as a dict key in the form (last_name, first_names)), headshot ('image'), and role (fac, postdoc, student, staff). Code: `stewarxiv/directory.py`. The listing pages it reads, and how each one shows names and positions, are in the `DIRECTORY_PAGES` table there; if the department website's layout changes, that table and the `name_from_*` functions are where to look.
 
 2. Fetch the arxiv RSS feed (fetch_feed), stop if it wasn't updated today (feed_is_fresh), and filter it (get_matching_posts), all in `stewarxiv/feed.py`. The maybe confusingly named "unpack_feed_entry" returns None when there is not enough evidence that this is UofA people.
 

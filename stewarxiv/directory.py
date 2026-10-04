@@ -20,126 +20,66 @@ POSTDOC = 2
 STAFF = 2
 STUDENT = 3
 
+# Each listing page shows names differently on its .card-body cards
+def name_from_fields(card):
+    # separate first and last name fields inside the card's <h1>
+    h1 = card.select_one('h1')
+    firstname = h1.select_one('.field--name-field-az-fname').text.strip()
+    lastname  = h1.select_one('.field--name-field-az-lname').text.strip()
+    return (firstname, lastname)
+
+def name_from_h3(card):
+    # "First Last" as one string in the card's <h3>
+    return tuple(card.select('h3')[0].text.replace('\n', '').split(' ', 1))
+
+# The listing pages to scrape, in order (a later page overwrites an earlier
+# one for the same name): (path, role, how to read names, position).
+# A position of None means read it from each person's profile page, and
+# skip the person if it's missing.
+DIRECTORY_PAGES = [
+    ('/people/all-faculty', FACULTY, name_from_fields, None),
+    ('/people/postdocs', POSTDOC, name_from_h3, None),
+    ('/people/graduate-students', STUDENT, name_from_fields, 'Graduate Student'),
+    ('/people/staff', STAFF, name_from_fields, 'Staff'),
+]
+
 def build_directory():
     people = {}
     base_link = 'https://astro.arizona.edu'
 
-    faculty_page = soupify('https://astro.arizona.edu/people/all-faculty')
-    for facwrap in faculty_page.select('.card-body'):
+    for path, role, read_name, fixed_position in DIRECTORY_PAGES:
+        listing_page = soupify(base_link + path)
+        for wrap in listing_page.select('.card-body'):
+            name = read_name(wrap)
+            name = tuple(normalize_caseless(part.strip()) for part in name)[::-1] # lower case and reverse order
 
-        h1 = facwrap.select_one('h1')
-        firstname = h1.select_one('.field--name-field-az-fname').text.strip()
-        lastname  = h1.select_one('.field--name-field-az-lname').text.strip()
-        name = (firstname, lastname)
-        name = tuple(normalize_caseless(part.strip()) for part in name)[::-1]
+            # retrieve link to individual page
+            ind_page_link = wrap.find_all('a', href=True)[0]['href']
+            ind_page = soupify(base_link + ind_page_link)
 
-        # retrieve link to individual page
-        ind_page_link = facwrap.find_all('a', href=True)[0]['href']
-        ind_page = soupify(base_link + ind_page_link)
+            # get position
+            if fixed_position is None:
+                try:
+                    position = ind_page.find_all("div", class_="field--name-field-az-titles")[0].text.replace('\n', '')
+                except Exception:
+                    log.warning(f"Failed to get position for {name}")
+                    continue
+            else:
+                position = fixed_position
 
-        # get position
-        try:
-            position = ind_page.find_all("div", class_="field--name-field-az-titles")[0].text.replace('\n', '')
-        except Exception as e:
-            log.warning(f"Failed to get position for {name}")
-            continue
-        # get image
-        try:
-            image = base_link + ind_page.select('article')[0].select_one('img')['src']
-        except Exception as e:
-            log.warning(f"Unable to find image for {name}")
-            image = None
+            # get image
+            try:
+                image = base_link + ind_page.select('article')[0].select_one('img')['src']
+            except Exception:
+                log.warning(f"Unable to find image for {name}")
+                image = None
 
-        people[name]= {
-            'role': FACULTY,
-            'position': position,
-            'image': image, 
-            'page': base_link + ind_page_link,
-        }
-
-    postdoc_page = soupify('https://astro.arizona.edu/people/postdocs')
-    for wrap in postdoc_page.select('.card-body'):
-        name = tuple(wrap.select('h3')[0].text.replace('\n', '').split(' ', 1))
-        name = tuple(normalize_caseless(part.strip()) for part in name)[::-1] # lower case and reverse order
-
-        # retrieve link to individual page
-        ind_page_link = wrap.find_all('a', href=True)[0]['href']
-        ind_page = soupify(base_link + ind_page_link)
-
-        # get position
-        try:
-            position = ind_page.find_all("div", class_="field--name-field-az-titles")[0].text.replace('\n', '')
-        except Exception as e:
-            log.warning(f"Failed to get position for {name}")
-            continue
-        
-        # get image
-        try:
-            image = base_link + ind_page.select('article')[0].select_one('img')['src']
-        except Exception as e:
-            log.warning(f"Unable to find image for {name}")
-            image = None
-
-        people[name]= {
-            'role': POSTDOC,
-            'position': position,
-            'image': image,
-            'page': base_link + ind_page_link,
-        }
-
-    student_page = soupify('https://astro.arizona.edu/people/graduate-students')
-    for wrap in student_page.select('.card-body'):
-
-        h1 = wrap.select_one('h1')
-        firstname = h1.select_one('.field--name-field-az-fname').text.strip()
-        lastname  = h1.select_one('.field--name-field-az-lname').text.strip()
-        name = (firstname, lastname)
-        name = tuple(normalize_caseless(part.strip()) for part in name)[::-1]
-
-        # retrieve link to individual page
-        ind_page_link = wrap.find_all('a', href=True)[0]['href']
-        ind_page = soupify(base_link + ind_page_link)
-
-        # get image
-        try:
-            image = base_link + ind_page.select('article')[0].select_one('img')['src']
-        except Exception as e:
-            log.warning(f"Unable to find image for {name}")
-            image = None
-
-        people[name]= {
-            'role': STUDENT,
-            'position': 'Graduate Student',
-            'image': image,
-            'page': base_link + ind_page_link,
-        }
-
-    staff_page = soupify('https://astro.arizona.edu/people/staff')
-    for wrap in staff_page.select('.card-body'):
-
-        h1 = wrap.select_one('h1')
-        firstname = h1.select_one('.field--name-field-az-fname').text.strip()
-        lastname  = h1.select_one('.field--name-field-az-lname').text.strip()
-        name = (firstname, lastname)
-        name = tuple(normalize_caseless(part.strip()) for part in name)[::-1]
-
-        # retrieve link to individual page
-        ind_page_link = wrap.find_all('a', href=True)[0]['href']
-        ind_page = soupify(base_link + ind_page_link)
-
-        # get image
-        try:
-            image = base_link + ind_page.select('article')[0].select_one('img')['src']
-        except Exception as e:
-            log.warning(f"Unable to find image for {name}")
-            image = None
-
-        people[name]= {
-            'role': STAFF,
-            'position': 'Staff',
-            'image': image,
-            'page': base_link + ind_page_link,
-        }
+            people[name] = {
+                'role': role,
+                'position': position,
+                'image': image,
+                'page': base_link + ind_page_link,
+            }
 
     print("finished building directory")
 
