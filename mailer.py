@@ -19,7 +19,7 @@ from stewarxiv.directory import build_directory
 from stewarxiv.feed import fetch_feed, feed_is_fresh, get_matching_posts
 from stewarxiv.names import Author
 from stewarxiv.thumbnails import build_thumbnails
-from stewarxiv.email import render_mailing, compose_email, send_email
+from stewarxiv.mailing import render_mailing, compose_email, send_email
 
 # mail settings (config.py, copied from config.py.template)
 import config
