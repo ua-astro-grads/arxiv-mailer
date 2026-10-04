@@ -8,26 +8,6 @@ import requests
 
 log = logging.getLogger(__name__)
 
-def gather_affiliation_evidence(arxiv_id):
-    url = f'https://arxiv.org/e-print/{arxiv_id}'
-    evidence = 0
-    try:
-        res = requests.get(url)
-        buff = io.BytesIO(res.content)
-        archive = tarfile.open(fileobj=buff)
-        texfiles = [m for m in archive.getmembers() if m.name.lower().endswith('.tex')]
-
-        UOFA_RE = re.compile(r'(university of arizona|steward observatory|arizona\.edu|lbto\.org|gmto\.org)', flags=re.IGNORECASE)
-
-        for info in texfiles:
-            fh = archive.extractfile(info)
-            contents = fh.read().decode('utf8')
-            matches = UOFA_RE.findall(contents)
-            evidence += len(matches)
-    except Exception as e:
-        log.debug(e)
-    return evidence
-
 UOFA_RE = re.compile(r'(university of arizona|steward observatory|arizona\.edu|lbto\.org|gmto\.org)', flags=re.IGNORECASE)
 
 def evidence_in_texfile(fh):

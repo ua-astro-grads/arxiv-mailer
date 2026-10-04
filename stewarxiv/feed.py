@@ -56,11 +56,11 @@ def feed_is_fresh(feed):
     pub_day = parse(feed.feed['published']).astimezone(datetime.timezone.utc).date()
     today = datetime.datetime.now(datetime.timezone.utc).date()
     if (update_day - today).days != 0:
-        log.warn(f"Mailer was invoked but feed was last updated on {update_day} UTC")
+        log.warning(f"Mailer was invoked but feed was last updated on {update_day} UTC")
         return False
     if (pub_day - today).days != 0:
-        log.warn(f"Mailer was invoked but content in feed was last " +
-                 f"published on {pub_day} UTC")
+        log.warning(f"Mailer was invoked but content in feed was last " +
+                    f"published on {pub_day} UTC")
         return False
     return True
 
