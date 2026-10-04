@@ -17,8 +17,8 @@ _DEFAULT_CIPHERS = (
 )
 
 env = jinja2.Environment(
-    # the templates live in the repo root, one level above this package
-    loader=jinja2.FileSystemLoader(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    # the templates live in templates/ in the repo root, next to this package
+    loader=jinja2.FileSystemLoader(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'templates')),
     autoescape=jinja2.select_autoescape(['html', 'xml'])
 )
 

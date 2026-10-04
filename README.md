@@ -31,7 +31,7 @@ python mailer.py -d        # demo run, see "Demo mode" below
 | 2a. Names | `names.py` | `approximate_name_lookup` scores each arXiv author 0 (no match), 1 (first initial + last name) or 2 (full name), giving an `Author(name, key, score)`. |
 | 2b. Evidence | `evidence.py` | For matched postings, downloads the LaTeX source and counts UofA affiliation strings (`UOFA_RE`). Postings with none are dropped. If the source can't be downloaded, a posting is kept only if its authors' scores add up to 2 or more. |
 | 3. Thumbnails | `thumbnails.py` | Crops the matched authors' headshots into small round images embedded in the email. |
-| 4. Email | `email.py` | Renders the Jinja2 templates (`mailing.jinja2.html`, `mailing.jinja2.txt`, `author.jinja2.html` in the repo root), builds the message and sends it. |
+| 4. Email | `email.py` | Renders the Jinja2 templates in `templates/` (`mailing.jinja2.html`, `mailing.jinja2.txt`, `author.jinja2.html`), builds the message and sends it. |
 
 If there are matching postings the email goes to the list; otherwise only to the admin address. Each run logs to `logs/<date>.log`.
 
