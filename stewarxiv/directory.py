@@ -1,5 +1,6 @@
 """Step 1: build the personnel directory by scraping astro.arizona.edu."""
 import logging
+import re
 from typing import TypedDict
 
 import requests
@@ -43,6 +44,26 @@ class _PersonFields(TypedDict):
 
 class Person(_PersonFields, total=False):
     thumb_cid: str          # added by thumbnails.build_thumbnails when the headshot is embedded
+
+# Nicknames written in parentheses or quotes, e.g. 'Robert S. (Bob)',
+# 'Chi-Kwan "CK"', or 'Zhengyangguang (Laurence) Gong' on the postdoc page.
+NICKNAME_RE = re.compile(r'\([^)]*\)|"[^"]*"|“[^”]*”')
+
+def drop_nicknames(text):
+    """Remove nicknames written in parentheses or double quotes from a name.
+
+    Nicknames are ignored when matching: they're unlikely to be the name
+    someone publishes under, and left in the directory they stop the full
+    name from matching (e.g. arXiv 'Robert S. McMillan' vs 'robert s bob').
+    Apostrophes, as in O'Reilly, are kept.
+
+    Args:
+        text: A name or part of a name, e.g. 'Robert S. (Bob)'.
+
+    Returns:
+        str: The text with nicknames replaced by spaces, e.g. 'Robert S.  '.
+    """
+    return NICKNAME_RE.sub(' ', text)
 
 # Each listing page shows names differently on its .card-body cards
 def name_from_fields(card):
@@ -119,7 +140,8 @@ def build_directory() -> dict[tuple[str, ...], Person]:
         listing_page = soupify(base_link + path)
         for wrap in listing_page.select('.card-body'):
             name = read_name(wrap)
-            name = tuple(normalize_caseless(part.strip()) for part in name)[::-1] # lower case and reverse order
+            # drop nicknames, then lower case and reverse order
+            name = tuple(normalize_caseless(drop_nicknames(part).strip()) for part in name)[::-1]
 
             # retrieve link to individual page
             ind_page_link = wrap.find_all('a', href=True)[0]['href']
