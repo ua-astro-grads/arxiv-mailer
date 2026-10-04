@@ -60,8 +60,9 @@ def approximate_name_lookup(name, people):
     same last name and returns the first one that matches:
 
     - score 2: the arXiv first name(s) equal or start with the directory's
-      first names, or contain them and start with them once initials are
-      removed (e.g. 'J. Edgar' matches 'edgar')
+      first names, or match them as whole words once initials are removed
+      from either one (e.g. 'J. Edgar' matches 'edgar', and 'Marcia'
+      matches 'marcia j')
     - score 1: the arXiv first name is just an initial (e.g. 'G.') matching
       the first letter of the directory's first name
 
@@ -97,8 +98,10 @@ def approximate_name_lookup(name, people):
                 score = 2
             elif first_names != first_initial and first_names in person_first:
                 # first_names is a substring of person_first
-                # does person_first match after removing initials?
-                if strip_initials(first_names).startswith(person_first):
+                # does person_first match after removing initials? e.g. arXiv
+                # 'marcia' vs directory 'marcia j'. Compare whole words, so
+                # 'al' doesn't match 'alice'.
+                if (strip_initials(person_first) + ' ').startswith(first_names + ' '):
                     score = 2
             elif person_first in first_names:
                 # does first_names match after removing initials?

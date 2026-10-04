@@ -28,3 +28,14 @@ def test_approximate_name_lookup():
     assert approximate_name_lookup('G. Hausschuh', people) == (('hausschuh', 'georgina'), 1)
     assert approximate_name_lookup('{M. Navarro Rodrigo}', people) == (('rodrigo', 'marco navarro'), 1)
 
+def test_approximate_name_lookup_directory_initials():
+    # issue #17: directory has a middle initial the arXiv name leaves out
+    people = {
+        ('rieke', 'marcia j'): None,
+        ('long', 'joseph d'): None,
+        ('smith', 'alice'): None,
+    }
+    assert approximate_name_lookup('Marcia Rieke', people) == (('rieke', 'marcia j'), 2)
+    assert approximate_name_lookup('Joseph Long', people) == (('long', 'joseph d'), 2)
+    # whole words only: 'Al' is not 'Alice'
+    assert approximate_name_lookup('Al Smith', people) == (None, 0)
