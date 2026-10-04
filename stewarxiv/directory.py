@@ -37,7 +37,7 @@ STUDENT = 3
 # the types just document the keys.
 class _PersonFields(TypedDict):
     role: int               # FACULTY, POSTDOC, STUDENT or STAFF
-    position: str           # job title, e.g. 'Graduate Student'
+    position: str           # job title, e.g. 'Graduate Student'; '' if the profile has none
     image: str | None       # headshot URL, or None if the profile has none
     page: str               # profile page URL
 
@@ -87,8 +87,8 @@ def name_from_h3(card):
 
 # The listing pages to scrape, in order (a later page overwrites an earlier
 # one for the same name): (path, role, how to read names, position).
-# A position of None means read it from each person's profile page, and
-# skip the person if it's missing.
+# A position of None means read it from each person's profile page (blank
+# if the profile doesn't list one).
 DIRECTORY_PAGES = [
     ('/people/all-faculty', FACULTY, name_from_fields, None),
     ('/people/postdocs', POSTDOC, name_from_h3, None),
@@ -103,9 +103,10 @@ def build_directory() -> dict[tuple[str, ...], Person]:
     gets the name with that page's name reader, normalizes it into a
     lowercase (last_name, first_names) key, then opens the person's profile
     page for their position (or uses the page's fixed position) and headshot
-    URL. People whose position has to be read but is missing are skipped; a
-    missing headshot is logged and stored as None. If a name appears on
-    several pages, the later page's entry wins.
+    URL. A missing position is logged and stored as '' (the person is still
+    included, so their papers are matched); a missing headshot is logged and
+    stored as None. If a name appears on several pages, the later page's
+    entry wins.
 
     Returns:
         dict[tuple[str, ...], Person]: Directory entries keyed by
@@ -129,8 +130,10 @@ def build_directory() -> dict[tuple[str, ...], Person]:
                 try:
                     position = ind_page.find_all("div", class_="field--name-field-az-titles")[0].text.replace('\n', '')
                 except Exception:
-                    log.warning(f"Failed to get position for {name}")
-                    continue
+                    # keep them anyway: skipping meant their papers were
+                    # never matched (issue #17)
+                    log.warning(f"Failed to get position for {name}; keeping them with a blank position")
+                    position = ''
             else:
                 position = fixed_position
 

@@ -26,7 +26,7 @@ python mailer.py -d        # demo run, see "Demo mode" below
 
 | Step | Module | What it does |
 |---|---|---|
-| 1. Directory | `directory.py` | Scrapes the astro.arizona.edu people pages into `Person` entries keyed by `(last_name, first_names)`. The pages and how each shows names are in the `DIRECTORY_PAGES` table: start there if the website layout changes. |
+| 1. Directory | `directory.py` | Scrapes the astro.arizona.edu people pages into `Person` entries keyed by `(last_name, first_names)`. The pages and how each shows names are in the `DIRECTORY_PAGES` table: start there if the website layout changes. People whose profile lists no job title are kept with a blank position. |
 | 2. Feed | `feed.py` | Fetches the astro-ph RSS feed, stops if it wasn't updated today, and keeps postings with an author match. |
 | 2a. Names | `names.py` | `approximate_name_lookup` scores each arXiv author 0 (no match), 1 (first initial + last name) or 2 (full name; a middle initial on only one side is ignored), giving an `Author(name, key, score)`. Multi-word and hyphenated surnames match; if the directory has only the first part of the surname (Faramaz for Faramaz-Gorka) the score is at most 1. |
 | 2b. Evidence | `evidence.py` | For matched postings, downloads the LaTeX source and counts UofA affiliation strings (`UOFA_RE`). Postings with none are dropped. If the source can't be downloaded, a posting is kept only if its authors' scores add up to 2 or more. |
