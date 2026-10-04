@@ -6,7 +6,7 @@ Happy {{ day_of_week }}! Today's astro-ph arXiv update includes {% if posts|coun
 {{ post.title }}
   https://arxiv.org/abs/{{ post.arxiv_id }} | PDF: https://arxiv.org/pdf/{{ post.arxiv_id }}
 
-{% for author in post.authors %}{{ author[0] }}{% if author[1][0] %} (SO){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+{% for author in post.authors %}{{ author.name }}{% if author.key %} (SO){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
 
 {{ post.abstract }}
 {% endfor %}

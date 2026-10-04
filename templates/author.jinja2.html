@@ -1,4 +1,4 @@
-{% with name = author[0]|replace(" ", "&nbsp;")|safe, key = author[1][0], score = author[1][1] %}
+{% with name = author.name|replace(" ", "&nbsp;")|safe, key = author.key, score = author.score %}
 {% if key %}
   <div style="display:inline-block; vertical-align:middle; margin:2px;">
     {% if people[key]['thumb_cid'] %}
