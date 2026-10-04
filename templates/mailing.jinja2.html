@@ -47,7 +47,7 @@
           {% for author in post.authors[:20] %}
 	      {% include "author.jinja2.html" %}{% if not loop.last %},{% endif %}
 	  {% endfor %}
-	  et al. (with {{ post.authors[20:]|count }} other authors
+	  et al. (with {{ post.authors[20:]|count }} other author(s)
 	  {#- list only our people from the rest, comma-separated #}
 	  {%- set incl_authors = post.authors[20:]|selectattr('key')|list %}
 	  {%- if incl_authors %} incl.{% endif %}
