@@ -50,7 +50,7 @@
 	  et al. (with {{ post.authors[20:]|count }} other authors
 	  {% set incl = namespace(shown=False) %}
 	  {% for author in post.authors[20:] %}
-	      {% with name = author[0]|replace(" ", "&nbsp;")|safe, key = author[1][0], score = author[1][1] %}
+	      {% with name = author.name|replace(" ", "&nbsp;")|safe, key = author.key, score = author.score %}
                {% if key %}
 	          {% if not incl.shown %}
                       incl.

@@ -2,8 +2,15 @@
 import logging
 import re
 import unicodedata
+from typing import NamedTuple
 
 log = logging.getLogger(__name__)
+
+class Author(NamedTuple):
+    """One author of an arXiv posting, and who they matched in the directory."""
+    name: str                        # as written on arXiv, e.g. 'Edgar Ferris'
+    key: tuple[str, ...] | None      # directory key, e.g. ('ferris', 'edgar'), or None if no match
+    score: int                       # 0 no match, 1 first initial + last name, 2 full name
 
 def normalize_caseless(text):
     text = re.sub(r'[^\w]', ' ', text)

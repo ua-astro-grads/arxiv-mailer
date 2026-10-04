@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from dateutil.parser import parse
 
 from stewarxiv.evidence import gather_affiliation_evidence
-from stewarxiv.names import approximate_name_lookup
+from stewarxiv.names import Author, approximate_name_lookup
 
 log = logging.getLogger(__name__)
 
@@ -19,8 +19,8 @@ def unpack_feed_entry(post, people, check_affiliation=True):
     # New arXiv RSS feed has a comma-separated author list instead of the a tag
     author_names = [author.strip() for author in
         BeautifulSoup(post.author, features="lxml").text.split(',')]
-    authors = [(name, approximate_name_lookup(name, people)) for name in author_names]
-    our_people_score = sum(item[1][1] for item in authors)
+    authors = [Author(name, *approximate_name_lookup(name, people)) for name in author_names]
+    our_people_score = sum(item.score for item in authors)
     if our_people_score < 1:
         return
     else:
@@ -72,8 +72,8 @@ def get_matching_posts(feed, people, check_affiliation=True):
         if unpacked_post:
             posts.append(unpacked_post)
             for author in unpacked_post['authors']:
-                if author[1][0] is not None:
-                    key = author[1][0]
+                if author.key is not None:
+                    key = author.key
                     all_authors.append((key, people[key]))
     # sorting by the key, so by last names
     all_authors.sort()

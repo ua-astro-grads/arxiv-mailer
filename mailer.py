@@ -17,11 +17,12 @@ from dateutil import tz
 
 from stewarxiv.directory import build_directory
 from stewarxiv.feed import fetch_feed, feed_is_fresh, get_matching_posts
+from stewarxiv.names import Author
 from stewarxiv.thumbnails import build_thumbnails
 from stewarxiv.email import render_mailing, compose_email, send_email
 
-# import global config variables
-from config import *
+# mail settings (config.py, copied from config.py.template)
+import config
 
 log = logging.getLogger(__name__)
 
@@ -46,6 +47,11 @@ def main():
             people = context['people']
             posts = context['posts']
             all_authors = context['all_authors']
+            # pickles saved before Author existed store each author as a
+            # plain (name, (key, score)) tuple
+            for post in posts:
+                post['authors'] = [a if isinstance(a, Author) else Author(a[0], *a[1])
+                                   for a in post['authors']]
             # except run_time, update that in loaded dict
             context['run_time'] = run_time_local.strftime('%Y-%m-%d %H:%M %Z')
             context['day_of_week'] = day_of_week
@@ -80,13 +86,13 @@ def main():
             f.write(text_mailing)
 
     # Compose the email
-    from_addr_spec = MAIL_USERNAME if not demo_mode else 'stewarxiv@gmail.com'
+    from_addr_spec = config.MAIL_USERNAME if not demo_mode else 'stewarxiv@gmail.com'
     from_addr = Address("StewarXiv", addr_spec=from_addr_spec)
     # decide who to send to depending on content or demoing
     if not demo_mode and len(posts) > 0:
-        to_addrs = [Address("StewarXiv", addr_spec=MAIL_SENDTO)]
+        to_addrs = [Address("StewarXiv", addr_spec=config.MAIL_SENDTO)]
     else:
-        to_addrs = [Address("ADMIN", addr_spec=MAIL_USERNAME)]
+        to_addrs = [Address("ADMIN", addr_spec=config.MAIL_USERNAME)]
     subject = f'{day_of_week}\'s update: {len(posts)} {"preprint" if len(posts) == 1 else "preprints"} from {len(all_authors)} {"colleague" if len(all_authors) == 1 else "colleagues"}'
     # Compose the email (also CC the sender of the email)
     msg = compose_email(from_addr, to_addrs, subject, html_mailing, text_mailing,

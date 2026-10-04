@@ -1,5 +1,6 @@
 """Step 1: build the personnel directory by scraping astro.arizona.edu."""
 import logging
+from typing import TypedDict
 
 import requests
 from bs4 import BeautifulSoup
@@ -19,6 +20,18 @@ FACULTY = 1
 POSTDOC = 2
 STAFF = 2
 STUDENT = 3
+
+# A directory entry: what build_directory stores for each person, keyed by
+# their normalized (last_name, first_names). It's a plain dict at runtime;
+# the types just document the keys.
+class _PersonFields(TypedDict):
+    role: int               # FACULTY, POSTDOC, STUDENT or STAFF
+    position: str           # job title, e.g. 'Graduate Student'
+    image: str | None       # headshot URL, or None if the profile has none
+    page: str               # profile page URL
+
+class Person(_PersonFields, total=False):
+    thumb_cid: str          # added by thumbnails.build_thumbnails when the headshot is embedded
 
 # Each listing page shows names differently on its .card-body cards
 def name_from_fields(card):
@@ -43,7 +56,7 @@ DIRECTORY_PAGES = [
     ('/people/staff', STAFF, name_from_fields, 'Staff'),
 ]
 
-def build_directory():
+def build_directory() -> dict[tuple[str, ...], Person]:
     people = {}
     base_link = 'https://astro.arizona.edu'
 

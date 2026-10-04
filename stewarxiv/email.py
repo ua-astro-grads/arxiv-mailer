@@ -6,8 +6,8 @@ from email.message import EmailMessage
 
 import jinja2
 
-# import global config variables
-from config import *
+# mail settings (config.py, copied from config.py.template)
+import config
 
 # https://stackoverflow.com/questions/33857698/sending-email-from-python-using-starttls
 _DEFAULT_CIPHERS = (
@@ -48,10 +48,10 @@ def compose_email(from_address, to_addresses, subject, html_mailing, text_mailin
     return msg
 
 def send_email(msg):
-    host = MAIL_SERVER
-    port = int(MAIL_PORT)
-    user = MAIL_USERNAME
-    password = MAIL_PASSWORD
+    host = config.MAIL_SERVER
+    port = int(config.MAIL_PORT)
+    user = config.MAIL_USERNAME
+    password = config.MAIL_PASSWORD
 
     # only TLSv1 or higher
     context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
