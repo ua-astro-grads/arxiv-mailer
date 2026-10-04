@@ -10,6 +10,17 @@ from stewarxiv.names import normalize_caseless
 log = logging.getLogger(__name__)
 
 def soupify(url):
+    """Fetch a web page and parse it into a BeautifulSoup tree.
+
+    Requests the page with SSL certificate verification turned off (and the
+    resulting warnings silenced), then parses the HTML with lxml.
+
+    Args:
+        url: Full URL of the page.
+
+    Returns:
+        BeautifulSoup: The parsed page.
+    """
     import warnings
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -35,14 +46,43 @@ class Person(_PersonFields, total=False):
 
 # Each listing page shows names differently on its .card-body cards
 def name_from_fields(card):
-    # separate first and last name fields inside the card's <h1>
+    """Read a name from a listing card with separate first/last name fields.
+
+    Looks inside the card's <h1> for the first-name and last-name elements
+    (classes field--name-field-az-fname and -lname) and strips whitespace.
+    Used for the faculty, graduate student and staff pages.
+
+    Args:
+        card: A .card-body element from a listing page.
+
+    Returns:
+        tuple[str, str]: (first_name, last_name) as shown on the page.
+
+    Raises:
+        AttributeError: If the card has no <h1> or name fields.
+    """
     h1 = card.select_one('h1')
     firstname = h1.select_one('.field--name-field-az-fname').text.strip()
     lastname  = h1.select_one('.field--name-field-az-lname').text.strip()
     return (firstname, lastname)
 
 def name_from_h3(card):
-    # "First Last" as one string in the card's <h3>
+    """Read a name from a listing card that shows it as one string.
+
+    Takes the text of the card's first <h3>, removes newlines, and splits it
+    at the first space, so 'Mary Ann Evans' becomes ('Mary', 'Ann Evans').
+    Used for the postdoc page.
+
+    Args:
+        card: A .card-body element from a listing page.
+
+    Returns:
+        tuple[str, ...]: (first_name, rest_of_name), or a 1-tuple if the
+        name has no space.
+
+    Raises:
+        IndexError: If the card has no <h3>.
+    """
     return tuple(card.select('h3')[0].text.replace('\n', '').split(' ', 1))
 
 # The listing pages to scrape, in order (a later page overwrites an earlier
@@ -57,6 +97,20 @@ DIRECTORY_PAGES = [
 ]
 
 def build_directory() -> dict[tuple[str, ...], Person]:
+    """Scrape the department website into a directory of people.
+
+    For each listing page in DIRECTORY_PAGES, reads every .card-body card:
+    gets the name with that page's name reader, normalizes it into a
+    lowercase (last_name, first_names) key, then opens the person's profile
+    page for their position (or uses the page's fixed position) and headshot
+    URL. People whose position has to be read but is missing are skipped; a
+    missing headshot is logged and stored as None. If a name appears on
+    several pages, the later page's entry wins.
+
+    Returns:
+        dict[tuple[str, ...], Person]: Directory entries keyed by
+        (last_name, first_names).
+    """
     people = {}
     base_link = 'https://astro.arizona.edu'
 

@@ -29,6 +29,17 @@ log = logging.getLogger(__name__)
 HERE = os.path.dirname(__file__)
 
 def main():
+    """Run the whole pipeline and send the mailing.
+
+    Reads -d/--demo from the command line. In demo mode with an existing
+    demo.pickle, loads the directory and posts from it. Otherwise scrapes the
+    directory, fetches the feed (exiting with code 1 if it isn't from today)
+    and finds the matching posts, saving them to demo.pickle in demo mode.
+    Then builds the thumbnails, renders the mailing and sends it: to the
+    list if there are posts, otherwise only to the admin address. Demo mode
+    always sends only to the admin address, and writes mailing.html,
+    mailing.txt and mailing.eml for previewing.
+    """
     run_time = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
     tzmst = tz.gettz('America/Phoenix')
     run_time_local = run_time.astimezone(tzmst)

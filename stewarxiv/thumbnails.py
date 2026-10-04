@@ -12,9 +12,26 @@ log = logging.getLogger(__name__)
 THUMB_SIZE = 80
 
 def make_thumbnail(url):
-    # crop to a centered square (biased up toward the face) instead of
-    # letting the email client stretch it, then bake in a circular mask so
-    # it's round even in clients that ignore border-radius (Outlook)
+    """Download a headshot and turn it into a small round PNG.
+
+    Crops the image to a square, centered horizontally and shifted toward
+    the top where the face usually is (ImageOps.fit), instead of letting the
+    email client stretch it. Then makes the corners transparent with a
+    circular mask, drawn at 4x size and scaled down for smooth edges, so it
+    is round even in clients that ignore border-radius (Outlook). Saves it as
+    a 256-color PNG, which keeps the transparency at about a third of the
+    file size.
+
+    Args:
+        url: URL of the headshot image.
+
+    Returns:
+        bytes: PNG data, THUMB_SIZE x THUMB_SIZE pixels.
+
+    Raises:
+        requests.HTTPError: If the download fails.
+        PIL.UnidentifiedImageError: If the file isn't an image.
+    """
     import warnings
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -32,8 +49,22 @@ def make_thumbnail(url):
     return buff.getvalue()
 
 def build_thumbnails(all_authors):
-    # returns {cid: png bytes} and sets 'thumb_cid' on each author with a
-    # thumbnail, which the template uses to reference the inline image
+    """Make an embeddable thumbnail of each author's headshot.
+
+    Skips people with no headshot and people already done (someone on
+    several posts is in the list more than once). For each thumbnail it
+    generates a unique content ID and stores it on the person as
+    'thumb_cid', which the template uses as the image source (cid:...). If a
+    headshot can't be downloaded or read, a warning is logged and that
+    person gets no thumbnail.
+
+    Args:
+        all_authors: Person entries from get_matching_posts; modified in
+            place.
+
+    Returns:
+        dict[str, bytes]: PNG data keyed by content ID, for compose_email.
+    """
     thumbnails = {}
     for person in all_authors:
         if 'thumb_cid' in person or not person['image']:

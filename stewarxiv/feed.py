@@ -12,8 +12,26 @@ from stewarxiv.names import Author, approximate_name_lookup
 log = logging.getLogger(__name__)
 
 def unpack_feed_entry(post, people, check_affiliation=True):
-    # check_affiliation=False (demo mode) skips downloading the LaTeX source
-    # and keeps every posting with a name match
+    """Turn one RSS feed entry into a post, if it's by our people.
+
+    Splits the entry's comma-separated author list and matches each name with
+    approximate_name_lookup; entries with no match are dropped. If
+    check_affiliation is True, the LaTeX source is then checked with
+    gather_affiliation_evidence, and the entry is dropped if the source has
+    no UofA mention, or if it couldn't be read and the authors' match scores
+    add up to less than 2. The abstract is the summary text after
+    'Abstract: '.
+
+    Args:
+        post: A feedparser entry from the astro-ph RSS feed.
+        people: Directory from build_directory.
+        check_affiliation: Whether to download and check the LaTeX source
+            (False in demo mode).
+
+    Returns:
+        dict | None: The post, with keys authors (list of Author), title,
+        area, abstract, arxiv_id and html_arxiv_id; or None if dropped.
+    """
     title = post.title
     arxiv_area = post.tags[0]['term']
     # New arXiv RSS feed has a comma-separated author list instead of the a tag
@@ -48,10 +66,27 @@ def unpack_feed_entry(post, people, check_affiliation=True):
     return out
 
 def fetch_feed():
+    """Download and parse the astro-ph RSS feed.
+
+    Returns:
+        feedparser.FeedParserDict: The feed. feed.entries are the postings;
+        feed.feed holds its 'updated' and 'published' dates.
+    """
     return feedparser.parse('https://rss.arxiv.org/rss/astro-ph')
 
 def feed_is_fresh(feed):
-    # True if the feed was updated and published today (UTC)
+    """Check that the feed is from today, so only new postings are sent.
+
+    Converts the feed's 'updated' and 'published' dates to UTC and compares
+    them with today's UTC date, logging a warning if either differs (e.g. on
+    weekends, when arXiv doesn't announce new postings).
+
+    Args:
+        feed: The feed from fetch_feed.
+
+    Returns:
+        bool: True if both dates are today.
+    """
     update_day = parse(feed.feed['updated']).astimezone(datetime.timezone.utc).date()
     pub_day = parse(feed.feed['published']).astimezone(datetime.timezone.utc).date()
     today = datetime.datetime.now(datetime.timezone.utc).date()
@@ -65,6 +100,21 @@ def feed_is_fresh(feed):
     return True
 
 def get_matching_posts(feed, people, check_affiliation=True):
+    """Find the postings in the feed by our people.
+
+    Runs unpack_feed_entry on every entry and keeps the ones it returns.
+    Also collects the directory entry of every matched author, sorted by
+    (last_name, first_names); someone on several posts appears once per
+    post.
+
+    Args:
+        feed: The feed from fetch_feed.
+        people: Directory from build_directory.
+        check_affiliation: Passed to unpack_feed_entry (False in demo mode).
+
+    Returns:
+        tuple[list[dict], list[Person]]: (posts, all_authors).
+    """
     posts = []
     all_authors = []
     for post in feed.entries:
