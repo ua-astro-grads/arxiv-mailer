@@ -1,4 +1,61 @@
-# Run through docker
+# StewarXiv arXiv mailer
+
+Emails a daily digest of new astro-ph postings by University of Arizona astronomy people (faculty, postdocs, grad students and staff) to the astro-stewarxiv mailing list.
+
+## Quick start
+```
+python3 -m venv mailer_env
+source mailer_env/bin/activate
+python3 -m pip install -r requirements.txt
+cp config.py.template config.py
+mkdir logs
+python mailer.py -d        # demo run, see "Demo mode" below
+```
+
+## Configuration
+`config.py` (gitignored, copied from `config.py.template`) sets the SMTP server (`smtp.gmail.com:465`) and reads these environment variables:
+
+| Variable | Meaning |
+|---|---|
+| `MAIL_USERNAME` | account the mail is sent from; also the admin address |
+| `MAIL_PASSWORD` | its password; for CatMail, use the secondary password ([SMTP settings](https://uarizona.service-now.com/sp?id=kb_article_view&sysparm_article=KB0010181)) |
+| `MAIL_SENDTO` | the list address (default `astro-stewarxiv@list.arizona.edu`) |
+
+## How it works
+`mailer.py` runs these steps in order. The code for each lives in `stewarxiv/`:
+
+| Step | Module | What it does |
+|---|---|---|
+| 1. Directory | `directory.py` | Scrapes the astro.arizona.edu people pages into `Person` entries keyed by `(last_name, first_names)`. The pages and how each shows names are in the `DIRECTORY_PAGES` table: start there if the website layout changes. |
+| 2. Feed | `feed.py` | Fetches the astro-ph RSS feed, stops if it wasn't updated today, and keeps postings with an author match. |
+| 2a. Names | `names.py` | `approximate_name_lookup` scores each arXiv author 0 (no match), 1 (first initial + last name) or 2 (full name), giving an `Author(name, key, score)`. |
+| 2b. Evidence | `evidence.py` | For matched postings, downloads the LaTeX source and counts UofA affiliation strings (`UOFA_RE`). Postings with none are dropped. If the source can't be downloaded, a posting is kept only if its authors' scores add up to 2 or more. |
+| 3. Thumbnails | `thumbnails.py` | Crops the matched authors' headshots into small round images embedded in the email. |
+| 4. Email | `email.py` | Renders the Jinja2 templates (`mailing.jinja2.html`, `mailing.jinja2.txt`, `author.jinja2.html` in the repo root), builds the message and sends it. |
+
+If there are matching postings the email goes to the list; otherwise only to the admin address. Each run logs to `logs/<date>.log`.
+
+## Demo mode
+`python mailer.py -d` (or `--demo`) is the way to try changes:
+
+- skips the affiliation check (step 2b)
+- writes `mailing.html` (open in a browser), `mailing.txt` and `mailing.eml` (open in a mail client)
+- sends only to the admin address, never the list
+- saves the day's data to `demo.pickle` and reuses it on later runs, skipping the scraping and the feed. Keep a pickle from a day with UofA papers to work on weekends or quiet days; delete it to refresh.
+
+`python mailer.py --help` lists the options.
+
+## Tests
+```
+python -m pip install pytest
+python -m pytest
+```
+Run from the repo root with `python -m pytest` (not plain `pytest`) so the tests can import `stewarxiv`.
+
+Known failure: `test_approximate_name_lookup` fails on the `'bob dave'` case (it isn't matched to `('dave', 'a. bob c.')`).
+
+## Deployment
+Run it on an always-on machine on weekdays at 11:00 UTC (cron or a systemd timer), either directly or with Docker:
 ```
 mkdir logs
 docker run \
@@ -7,71 +64,11 @@ docker run \
 	-v logs:/arxiv-mailer/logs \
 	noahfranz13/stewarxiv:v0.1
 ```
+The Dockerfile clones the repo's default branch (`main`), so merge changes there first, then rebuild with `docker build -t stewarxiv:<version> .`
 
-# Development: Building the docker container
-After making changes run
-```
-docker build -t stewarxiv:v....
-```
+When testing a new setup, have the list owner hold messages for moderation at [list.arizona.edu](https://list.arizona.edu/sympa/info/astro-stewarxiv) so test emails don't reach subscribers.
 
-# Install requirements in a python venv
-```
-python3 -m venv mailer_env
-source mailer_env/bin/activate
-python3 -m pip install -r requirements.txt
-```
-
-Use your favorite tool to schedule it to run, on a computer that stays on/online (maybe CSG has a server you can borrow?) I had the timer set to run Mon,Tue,Wed,Thu,Fri \*-\*-\* 11:00:00 UTC. You will need to set a few environment variables (described below, Step 4).
-
-Here's what the script does. `mailer.py` runs these steps in order; the code for each step lives in the `stewarxiv/` package:
-
-1. Build the personnel directory from the department website. If you've ever done web scraping before, it is straightforward code, but (as long as it's working) not important exactly how it accomplishes that. It grabs names (used as a dict key in the form (last_name, first_names)), headshot ('image'), and role (fac, postdoc, student, staff). Code: `stewarxiv/directory.py`. The listing pages it reads, and how each one shows names and positions, are in the `DIRECTORY_PAGES` table there; if the department website's layout changes, that table and the `name_from_*` functions are where to look. Each entry is a `Person` dict (keys: role, position, image, page, and thumb_cid once the headshot is embedded), defined at the top of that file.
-
-2. Fetch the arxiv RSS feed (fetch_feed), stop if it wasn't updated today (feed_is_fresh), and filter it (get_matching_posts), all in `stewarxiv/feed.py`. The maybe confusingly named "unpack_feed_entry" returns None when there is not enough evidence that this is UofA people. Each post's authors are a list of `Author(name, key, score)` records (`stewarxiv/names.py`): name as written on arXiv, key the matched directory key or None, score 0, 1 or 2.
-
-        2.a. This is where it gets a little hairy: approximate_name_lookup (`stewarxiv/names.py`) gives a score of 0, 1, or 2 based on the criteria commented there.
-        2.b. If a score of 1 or greater is found, it goes to inspect the evidence.
-
-                gather_affiliation_evidence (`stewarxiv/evidence.py`) retrieves the LaTeX source of the arxiv posting (no idea what happens for postings without it, hopefully nobody's posting word docs on astro-ph). It does a case-insensitive search through the whole text for some institution names and domains (see UOFA_RE) and counts the matches as an evidence score. This can push a first initial last name match over the threshold for inclusion, or skip a posting if none of those strings appear anywhere in the tex source (you'd expect at least 'university of arizona' to appear somewhere!)
-
-3. Generate the email:
-
-        3.a. build_thumbnails (`stewarxiv/thumbnails.py`) downloads the matched authors' headshots and crops them into small round images, which are embedded in the email
-
-        3.b. The render_mailing function (`stewarxiv/email.py`) takes a "context" dictionary, and uses Jinja2 (a text templating language) to generate the mailing from snippets of text or HTML in the .jinja2.html files
-
-        3.c. The compose_email function (`stewarxiv/email.py`) attaches the addresses, HTML and text versions of the email, and the subject line to an EmailMessage object the Python stdlib mail support knows how to send
-
-4. Send the email (send_email in `stewarxiv/email.py`): The script reads environment variables $MAIL_SERVER $MAIL_PORT $MAIL_USERNAME and $MAIL_PASSWORD (so you don't have to have those in the script itself). You have to use the CatMail secondary password and SMTP settings from here https://uarizona.service-now.com/sp?id=kb_article_view&sysparm_article=KB0010181
-
-Running `python mailer.py -d` (or `--demo`) turns on demo mode, which skips the affiliation check, sends only to the admin address instead of the list, and writes the mailing to "mailing.html", "mailing.txt" and "mailing.eml". Since emails are plain text, the .eml file will just open in your mail client, and is a good way to preview what your changes look like. Run `python mailer.py --help` to see the options.
-
-The demo mode also pickles some data structures, which can be useful if you want to speed up your own iteration time working on a bug fix. This also persists the given day's matching posts, which means you can keep a pickle from a day with UofA papers and work on the script on a day without them, iirc. Should be basically transparent, and you can always remove demo.pickle if you change the data structure or need to refresh it for any reason.
-
-Anyway, I would suggest:
-
-1. Get the code and install the dependencies
-2. Use the '-d' command line arg to run in demo mode to check the feed-parsing and email-generating, but not the email-sending
-3. Get the credentials set up for outgoing mail
-4. We can change the list config here so that outbound email gets stopped at the list during testing.
-5. Test your config to make sure messages get to the list
-6. Set up scheduled task on your desktop or a Steward server (with crontab or SystemD timers as you prefer)
-7. We change the list config back so your messages go straight through without going to a queue
-8. I disable my instance of the arxiv-mailer
-9. Go to sleep and hope for the best the next day!
-
-
-## Running tests
-The tests live in `tests/`. Run them from the repo root with
-```
-python -m pytest
-```
-(use `python -m pytest` rather than plain `pytest` so the tests can import the `stewarxiv` package). Install pytest into your environment first if needed (`python -m pip install pytest`).
-
-Known failure: `test_approximate_name_lookup` currently fails on the `'bob dave'` case (it's not matched to `('dave', 'a. bob c.')`).
-
-## Development Workflow (Vikram)
-
-1. Load mailer environment
-2. If running the file in terminal: python mailer.py
-3. If running the file in the debugger, open the debug panel on the left of vscode and then run from there to ensure you are running in the correct environment.
+## Development workflow (Vikram)
+1. Load the mailer environment
+2. In a terminal: `python mailer.py` (add `-d` for demo mode)
+3. In the VS Code debugger: run from the debug panel so it uses the correct environment
