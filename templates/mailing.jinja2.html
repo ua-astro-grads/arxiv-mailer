@@ -51,9 +51,10 @@
 	  {#- list only our people from the rest, comma-separated #}
 	  {%- set incl_authors = post.authors[20:]|selectattr('key')|list %}
 	  {%- if incl_authors %} incl.{% endif %}
-	  {% for author in incl_authors %}
+	  {%- for author in incl_authors %}
 	      {% include "author.jinja2.html" %}{% if not loop.last %},{% endif %}
-	  {% endfor %}
+	  {#- trim before the closing parenthesis #}
+	  {%- endfor -%}
 	  )
           
       <!-- everything else (regular papers) -->
