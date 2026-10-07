@@ -28,3 +28,32 @@ def test_approximate_name_lookup():
     assert approximate_name_lookup('G. Hausschuh', people) == (('hausschuh', 'georgina'), 1)
     assert approximate_name_lookup('{M. Navarro Rodrigo}', people) == (('rodrigo', 'marco navarro'), 1)
 
+def test_approximate_name_lookup_directory_initials():
+    # issue #17: directory has a middle initial the arXiv name leaves out
+    people = {
+        ('rieke', 'marcia j'): None,
+        ('long', 'joseph d'): None,
+        ('smith', 'alice'): None,
+    }
+    assert approximate_name_lookup('Marcia Rieke', people) == (('rieke', 'marcia j'), 2)
+    assert approximate_name_lookup('Joseph Long', people) == (('long', 'joseph d'), 2)
+    # whole words only: 'Al' is not 'Alice'
+    assert approximate_name_lookup('Al Smith', people) == (None, 0)
+
+def test_approximate_name_lookup_multiword_surnames():
+    # issue #17: surnames of more than one word, and hyphenated surnames
+    people = {
+        ('van gorkom', 'kyle'): None,
+        ('o reilly', 'dillon'): None,
+        ('ragan jr', 'norman'): None,
+        ('laurence  gong', 'zhengyangguang'): None,  # double space from punctuation
+        ('faramaz', 'virginie'): None,
+    }
+    assert approximate_name_lookup('Kyle Van Gorkom', people) == (('van gorkom', 'kyle'), 2)
+    assert approximate_name_lookup("Dillon O'Reilly", people) == (('o reilly', 'dillon'), 2)
+    assert approximate_name_lookup('Norman Ragan Jr.', people) == (('ragan jr', 'norman'), 2)
+    assert approximate_name_lookup('Zhengyangguang Laurence Gong', people) == (('laurence  gong', 'zhengyangguang'), 2)
+    assert approximate_name_lookup('Virginie Faramaz', people) == (('faramaz', 'virginie'), 2)
+    # directory has only the first part of the surname: at most score 1
+    assert approximate_name_lookup('Virginie Faramaz-Gorka', people) == (('faramaz', 'virginie'), 1)
+    assert approximate_name_lookup('V. Faramaz-Gorka', people) == (('faramaz', 'virginie'), 1)

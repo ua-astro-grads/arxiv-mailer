@@ -26,9 +26,9 @@ python mailer.py -d        # demo run, see "Demo mode" below
 
 | Step | Module | What it does |
 |---|---|---|
-| 1. Directory | `directory.py` | Scrapes the astro.arizona.edu people pages into `Person` entries keyed by `(last_name, first_names)`. The pages and how each shows names are in the `DIRECTORY_PAGES` table: start there if the website layout changes. |
+| 1. Directory | `directory.py` | Scrapes the astro.arizona.edu people pages into `Person` entries keyed by `(last_name, first_names)`. The pages and how each shows names are in the `DIRECTORY_PAGES` table: start there if the website layout changes. People whose profile lists no job title are kept with a blank position. Nicknames in parentheses or quotes ("Robert S. (Bob)") are dropped, since they're unlikely to be the publishing name. |
 | 2. Feed | `feed.py` | Fetches the astro-ph RSS feed, stops if it wasn't updated today, and keeps postings with an author match. |
-| 2a. Names | `names.py` | `approximate_name_lookup` scores each arXiv author 0 (no match), 1 (first initial + last name) or 2 (full name), giving an `Author(name, key, score)`. |
+| 2a. Names | `names.py` | `approximate_name_lookup` scores each arXiv author 0 (no match), 1 (first initial + last name) or 2 (full name; a middle initial on only one side is ignored), giving an `Author(name, key, score)`. Multi-word and hyphenated surnames match; if the directory has only the first part of the surname (Faramaz for Faramaz-Gorka) the score is at most 1. |
 | 2b. Evidence | `evidence.py` | For matched postings, downloads the LaTeX source and counts UofA affiliation strings (`UOFA_RE`). Postings with none are dropped. If the source can't be downloaded, a posting is kept only if its authors' scores add up to 2 or more. |
 | 3. Thumbnails | `thumbnails.py` | Crops the matched authors' headshots into small round images embedded in the email. |
 | 4. Email | `mailing.py` | Renders the Jinja2 templates in `templates/` (`mailing.jinja2.html`, `mailing.jinja2.txt`, `author.jinja2.html`), builds the message and sends it. |
@@ -51,8 +51,6 @@ python -m pip install pytest
 python -m pytest
 ```
 Run from the repo root with `python -m pytest` (not plain `pytest`) so the tests can import `stewarxiv`.
-
-Known failure: `test_approximate_name_lookup` fails on the `'bob dave'` case (it isn't matched to `('dave', 'a. bob c.')`).
 
 ## Deployment
 Run it on an always-on machine on weekdays at 11:00 UTC (cron or a systemd timer), either directly or with Docker:

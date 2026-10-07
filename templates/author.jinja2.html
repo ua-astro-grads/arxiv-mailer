@@ -11,12 +11,11 @@
     {% endif %}
     <span style="font-weight:bold; vertical-align:middle;">
       <a href="{{ people[key]['page'] }}" style="text-decoration:none; color:inherit;">
-        {{ name }}
-      </a>
-    </span>
-  </div>
-{% else %}
+        {{- name -}}
+      </a></span></div>
+{#- the '-' markers trim whitespace after the name, so a following comma
+    sits right after it instead of after a space #}
+{%- else %}
   {{ name }}
-{% endif %}
-{% endwith %}
-
+{%- endif %}
+{%- endwith %}
