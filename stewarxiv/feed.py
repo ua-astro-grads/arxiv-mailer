@@ -1,6 +1,7 @@
 """Step 2: fetch the astro-ph RSS feed and keep postings by our people."""
 import datetime
 import logging
+import re
 
 import feedparser
 from bs4 import BeautifulSoup
@@ -10,6 +11,27 @@ from stewarxiv.evidence import gather_affiliation_evidence
 from stewarxiv.names import Author, approximate_name_lookup
 
 log = logging.getLogger(__name__)
+
+AFFILIATION_RE = re.compile(r'\s*\([^()]*\)')
+def split_author_names(raw_authors):
+    """Split a feed's author field into individual author names.
+
+    arXiv sometimes appends an author's affiliation in parentheses, e.g.
+    'Jane Doe (Some Institute, Some City)'. Affiliations are stripped
+    before splitting on commas, since an affiliation can itself contain a
+    comma: a plain comma split would otherwise break that one author into
+    several bogus pieces, such as 'Jane Doe (Some Institute' and
+    'Some City)'. Affiliations are not otherwise used for name matching.
+
+    Args:
+        raw_authors: The feed entry's author field, as HTML.
+
+    Returns:
+        list[str]: Author names, in their original order.
+    """
+    text = BeautifulSoup(raw_authors, features="lxml").text
+    text = AFFILIATION_RE.sub('', text)
+    return [name.strip() for name in text.split(',') if name.strip()]
 
 def unpack_feed_entry(post, people, check_affiliation=True):
     """Turn one RSS feed entry into a post, if it's by our people.
@@ -35,8 +57,7 @@ def unpack_feed_entry(post, people, check_affiliation=True):
     title = post.title
     arxiv_area = post.tags[0]['term']
     # New arXiv RSS feed has a comma-separated author list instead of the a tag
-    author_names = [author.strip() for author in
-        BeautifulSoup(post.author, features="lxml").text.split(',')]
+    author_names = split_author_names(post.author)
     authors = [Author(name, *approximate_name_lookup(name, people)) for name in author_names]
     our_people_score = sum(item.score for item in authors)
     if our_people_score < 1:
