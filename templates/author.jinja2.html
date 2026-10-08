@@ -15,7 +15,7 @@
       </a></span></div>
 {#- the '-' markers trim whitespace after the name, so a following comma
     sits right after it instead of after a space #}
-{%- else %}
-  {{ name }}
-{%- endif %}
-{%- endwith %}
+{%- else -%}
+{{- name -}}
+{%- endif -%}
+{%- endwith -%}
