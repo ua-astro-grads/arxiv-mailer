@@ -1,4 +1,4 @@
-Happy {{ day_of_week }}! Today's astro-ph arXiv update includes {% if posts|count == 1 %}one post{% else %}{{ posts|count }} posts{% endif %} featuring {{ all_authors|count }} of your colleagues.
+Happy {{ day_of_week }}! Today's astro-ph arXiv update includes {% if posts|count == 1 %}one post{% else %}{{ posts|count }} posts{% endif %} featuring {{ all_authors|count }} of your colleagues{% if ambiguous_posts %}, plus {{ ambiguous_posts|count }} possible {% if ambiguous_posts|count == 1 %}paper{% else %}papers{% endif %} listed at the end{% endif %}.
 {% for post in posts %}
 ---
 
@@ -10,6 +10,21 @@ Happy {{ day_of_week }}! Today's astro-ph arXiv update includes {% if posts|coun
 
 {{ post.abstract }}
 {% endfor %}
+{% if ambiguous_posts %}
+===
+Possible UofA papers: these mention Steward Observatory or the Department of Astronomy at the University of Arizona, but no author matched our directory.
+{% for post in ambiguous_posts %}
+---
+
+[{{post.area[0]}}.{{post.area[1]}}] (ambiguous)
+{{ post.title }}
+  https://arxiv.org/abs/{{ post.arxiv_id }} | PDF: https://arxiv.org/pdf/{{ post.arxiv_id }}
+
+{% for author in post.authors %}{{ author.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+
+{{ post.abstract }}
+{% endfor %}
+{% endif %}
 
 ---
 Generated at {{ run_time }}. Adjust options or unsubscribe at https://list.arizona.edu/sympa/info/astro-stewarxiv .

@@ -29,16 +29,16 @@ python mailer.py -d        # demo run, see "Demo mode" below
 | 1. Directory | `directory.py` | Scrapes the astro.arizona.edu people pages into `Person` entries keyed by `(last_name, first_names)`. The pages and how each shows names are in the `DIRECTORY_PAGES` table: start there if the website layout changes. People whose profile lists no job title are kept with a blank position. Nicknames in parentheses or quotes ("Robert S. (Bob)") are dropped, since they're unlikely to be the publishing name. |
 | 2. Feed | `feed.py` | Fetches the astro-ph RSS feed, stops if it wasn't updated today, converts LaTeX accents in author names to Unicode (`Sebasti\'an` → `Sebastián`), and keeps postings with an author match. |
 | 2a. Names | `names.py` | `approximate_name_lookup` scores each arXiv author 0 (no match), 1 (first initial + last name) or 2 (full name; a middle initial on only one side is ignored), giving an `Author(name, key, score)`. Accents are ignored (Dániel matches Daniel). Multi-word and hyphenated surnames match; if the directory has only the first part of the surname (Faramaz for Faramaz-Gorka) the score is at most 1. |
-| 2b. Evidence | `evidence.py` | For matched postings, downloads the LaTeX source and counts UofA affiliation strings (`UOFA_RE`). Postings with none are dropped. If the source can't be downloaded, a posting is kept only if its authors' scores add up to 2 or more. |
+| 2b. Evidence | `evidence.py` | For matched postings, downloads the LaTeX source and counts UofA affiliation strings (`UOFA_RE`). Postings with none are dropped. If the source can't be downloaded, a posting is kept only if its authors' scores add up to 2 or more. Postings with **no** author match are checked too, against the stricter `AMBIGUOUS_RE` ("University of Arizona" next to "Steward Observatory" or "Department of Astronomy", in either order). Those with a hit are kept as *ambiguous* posts; if the source can't be read they are dropped. Downloads are spaced by `DOWNLOAD_DELAY` seconds in `feed.py`. |
 | 3. Thumbnails | `thumbnails.py` | Crops the matched authors' headshots into small round images embedded in the email. |
-| 4. Email | `mailing.py` | Renders the Jinja2 templates in `templates/` (`mailing.jinja2.html`, `mailing.jinja2.txt`, `author.jinja2.html`), builds the message and sends it. |
+| 4. Email | `mailing.py` | Renders the Jinja2 templates in `templates/` (`mailing.jinja2.html`, `mailing.jinja2.txt`, `post.jinja2.html`, `author.jinja2.html`), builds the message and sends it. Ambiguous posts go in a "Possible UofA papers" section at the end, tagged "Ambiguous", and are counted separately in the subject line. |
 
-If there are matching postings the email goes to the list; otherwise only to the admin address. Each run logs to `logs/<date>.log`.
+If there are matching or ambiguous postings the email goes to the list; otherwise only to the admin address. Each run logs to `logs/<date>.log`.
 
 ## Demo mode
 `python mailer.py -d` (or `--demo`) is the way to try changes:
 
-- skips the affiliation check (step 2b)
+- skips the affiliation check (step 2b), so no ambiguous posts are found in demo mode
 - writes `mailing.html` (open in a browser), `mailing.txt` and `mailing.eml` (open in a mail client)
 - sends only to the admin address, never the list
 - saves the day's data to `demo.pickle` and reuses it on later runs, skipping the scraping and the feed. Keep a pickle from a day with UofA papers to work on weekends or quiet days; delete it to refresh.

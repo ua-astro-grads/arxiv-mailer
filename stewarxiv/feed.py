@@ -3,12 +3,13 @@ import datetime
 import logging
 import re
 import unicodedata
+import time
 
 import feedparser
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
 
-from stewarxiv.evidence import gather_affiliation_evidence
+from stewarxiv.evidence import AMBIGUOUS_RE, gather_affiliation_evidence
 from stewarxiv.names import Author, approximate_name_lookup
 
 log = logging.getLogger(__name__)
@@ -59,17 +60,26 @@ def latex_to_unicode(text):
     text = unicodedata.normalize('NFC', text)
     return re.sub(r'(?<!\\)[{}]', '', text)
 
+# seconds to wait before each LaTeX source download, to be polite to arXiv
+DOWNLOAD_DELAY = 1
+
 def unpack_feed_entry(post, people, check_affiliation=True):
     """Turn one RSS feed entry into a post, if it's by our people.
 
     Converts LaTeX accents in the author list to Unicode with
-    latex_to_unicode, splits the comma-separated list, and matches each name with
-    approximate_name_lookup; entries with no match are dropped. If
-    check_affiliation is True, the LaTeX source is then checked with
-    gather_affiliation_evidence, and the entry is dropped if the source has
+    latex_to_unicode, splits the comma-separated list, and matches each name
+    with approximate_name_lookup. If check_affiliation is True, the LaTeX
+    source is then checked with gather_affiliation_evidence.
+
+    For entries with an author match, the entry is dropped if the source has
     no UofA mention, or if it couldn't be read and the authors' match scores
-    add up to less than 2. The abstract is the summary text after
-    'Abstract: '.
+    add up to less than 2.
+
+    Entries with no author match are dropped unless check_affiliation is True
+    and the source was read and contains a department affiliation
+    (AMBIGUOUS_RE, e.g. "Steward Observatory, University of Arizona"); those
+    are returned with 'ambiguous' set to True. The abstract is the summary
+    text after 'Abstract: '.
 
     Args:
         post: A feedparser entry from the astro-ph RSS feed.
@@ -79,7 +89,9 @@ def unpack_feed_entry(post, people, check_affiliation=True):
 
     Returns:
         dict | None: The post, with keys authors (list of Author), title,
-        area, abstract, arxiv_id and html_arxiv_id; or None if dropped.
+        area, abstract, arxiv_id, html_arxiv_id and ambiguous (True if
+        there was no author match, only an affiliation match); or None if
+        dropped.
     """
     title = post.title
     arxiv_area = post.tags[0]['term']
@@ -88,12 +100,21 @@ def unpack_feed_entry(post, people, check_affiliation=True):
     author_names = [author.strip() for author in author_text.split(',')]
     authors = [Author(name, *approximate_name_lookup(name, people)) for name in author_names]
     our_people_score = sum(item.score for item in authors)
-    if our_people_score < 1:
-        return
+    arxiv_id = post.link.rsplit('/', 1)[1]
+    ambiguous = our_people_score < 1
+    if ambiguous:
+        if not check_affiliation:
+            return
+        # no author match: only keep it if the source names a UofA department
+        time.sleep(DOWNLOAD_DELAY)
+        evidence, gather_success = gather_affiliation_evidence(arxiv_id, AMBIGUOUS_RE)
+        if not gather_success or evidence == 0:
+            return
+        log.info(f"Found ambiguous {arxiv_id=} with {evidence=}")
     else:
         log.info(f"Found {our_people_score=} from {authors=}")
-    arxiv_id = post.link.rsplit('/', 1)[1]
-    if check_affiliation:
+    if check_affiliation and not ambiguous:
+        time.sleep(DOWNLOAD_DELAY)
         evidence, gather_success = gather_affiliation_evidence(arxiv_id)
         if gather_success and evidence == 0:
             log.debug(f'Skipping {arxiv_id=} for lack of evidence: {our_people_score=} {evidence=}')
@@ -111,6 +132,7 @@ def unpack_feed_entry(post, people, check_affiliation=True):
         'abstract': abstract.replace('\n', ' '),
         'arxiv_id': arxiv_id,
         'html_arxiv_id': post.id.rsplit(':', 1)[1],
+        'ambiguous': ambiguous,
     }
     return out
 
@@ -151,10 +173,11 @@ def feed_is_fresh(feed):
 def get_matching_posts(feed, people, check_affiliation=True):
     """Find the postings in the feed by our people.
 
-    Runs unpack_feed_entry on every entry and keeps the ones it returns.
-    Also collects the directory entry of every matched author, sorted by
-    (last_name, first_names); someone on several posts appears once per
-    post.
+    Runs unpack_feed_entry on every entry and keeps the ones it returns,
+    split into posts with an author match and ambiguous posts (affiliation
+    match only). Also collects the directory entry of every matched author,
+    sorted by (last_name, first_names); someone on several posts appears once
+    per post.
 
     Args:
         feed: The feed from fetch_feed.
@@ -162,13 +185,17 @@ def get_matching_posts(feed, people, check_affiliation=True):
         check_affiliation: Passed to unpack_feed_entry (False in demo mode).
 
     Returns:
-        tuple[list[dict], list[Person]]: (posts, all_authors).
+        tuple[list[dict], list[Person], list[dict]]: (posts, all_authors,
+        ambiguous_posts).
     """
     posts = []
+    ambiguous_posts = []
     all_authors = []
     for post in feed.entries:
         unpacked_post = unpack_feed_entry(post, people, check_affiliation)
-        if unpacked_post:
+        if unpacked_post and unpacked_post['ambiguous']:
+            ambiguous_posts.append(unpacked_post)
+        elif unpacked_post:
             posts.append(unpacked_post)
             for author in unpacked_post['authors']:
                 if author.key is not None:
@@ -178,4 +205,4 @@ def get_matching_posts(feed, people, check_affiliation=True):
     all_authors.sort()
     all_authors = [x[1] for x in all_authors]
 
-    return posts, all_authors
+    return posts, all_authors, ambiguous_posts

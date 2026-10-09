@@ -58,6 +58,8 @@ def main():
             people = context['people']
             posts = context['posts']
             all_authors = context['all_authors']
+            # pickles saved before ambiguous posts existed lack this key
+            ambiguous_posts = context.setdefault('ambiguous_posts', [])
             # pickles saved before Author existed store each author as a
             # plain (name, (key, score)) tuple
             for post in posts:
@@ -71,11 +73,12 @@ def main():
         feed = fetch_feed()
         if not feed_is_fresh(feed):
             sys.exit(1)
-        posts, all_authors = get_matching_posts(feed, people, check_affiliation=not demo_mode)
+        posts, all_authors, ambiguous_posts = get_matching_posts(feed, people, check_affiliation=not demo_mode)
         context = {
             'people': people,
             'posts': posts,
             'all_authors': all_authors,
+            'ambiguous_posts': ambiguous_posts,
             'run_time': run_time_local.strftime('%Y-%m-%d %H:%M %Z'),
             'day_of_week': day_of_week,
         }
@@ -100,11 +103,16 @@ def main():
     from_addr_spec = config.MAIL_USERNAME if not demo_mode else 'stewarxiv@gmail.com'
     from_addr = Address("StewarXiv", addr_spec=from_addr_spec)
     # decide who to send to depending on content or demoing
-    if not demo_mode and len(posts) > 0:
+    if not demo_mode and (len(posts) > 0 or len(ambiguous_posts) > 0):
         to_addrs = [Address("StewarXiv", addr_spec=config.MAIL_SENDTO)]
     else:
         to_addrs = [Address("ADMIN", addr_spec=config.MAIL_USERNAME)]
     subject = f'{day_of_week}\'s update: {len(posts)} {"preprint" if len(posts) == 1 else "preprints"} from {len(all_authors)} {"colleague" if len(all_authors) == 1 else "colleagues"}'
+    if ambiguous_posts:
+        if posts:
+            subject += f', plus {len(ambiguous_posts)} possible'
+        else:
+            subject = f'{day_of_week}\'s update: {len(ambiguous_posts)} possible {"preprint" if len(ambiguous_posts) == 1 else "preprints"}'
     # Compose the email (also CC the sender of the email)
     msg = compose_email(from_addr, to_addrs, subject, html_mailing, text_mailing,
         cc_addresses=from_addr, thumbnails=thumbnails)
