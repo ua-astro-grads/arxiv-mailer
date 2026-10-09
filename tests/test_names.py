@@ -1,4 +1,4 @@
-from stewarxiv.names import NAME_RE, INITIAL_RE, strip_initials, approximate_name_lookup
+from stewarxiv.names import NAME_RE, INITIAL_RE, normalize_caseless, strip_initials, approximate_name_lookup
 
 
 def test_name_regex():
@@ -57,3 +57,24 @@ def test_approximate_name_lookup_multiword_surnames():
     # directory has only the first part of the surname: at most score 1
     assert approximate_name_lookup('Virginie Faramaz-Gorka', people) == (('faramaz', 'virginie'), 1)
     assert approximate_name_lookup('V. Faramaz-Gorka', people) == (('faramaz', 'virginie'), 1)
+
+def test_approximate_name_lookup_accents():
+    # issue #18: accents are ignored, whichever side has them
+    people = {
+        ('apai', 'daniel'): None,
+        ('gaspar', 'andras'): None,
+        ('arroyo chavez', 'griselda'): None,
+        (normalize_caseless('Jorquera'), normalize_caseless('Sebastián')): None,
+        ('sanchez', 'alice'): None,
+    }
+    assert approximate_name_lookup('Dániel Apai', people) == (('apai', 'daniel'), 2)
+    assert approximate_name_lookup('András Gáspár', people) == (('gaspar', 'andras'), 2)
+    assert approximate_name_lookup('Griselda Arroyo-Chávez', people) == (('arroyo chavez', 'griselda'), 2)
+    assert approximate_name_lookup('Sebastian Jorquera', people) == (('jorquera', 'sebastian'), 2)
+    assert approximate_name_lookup('Sebastián Jorquera', people) == (('jorquera', 'sebastian'), 2)
+    # a different first name still doesn't match
+    assert approximate_name_lookup('Álvaro Sánchez', people) == (None, 0)
+
+def test_normalize_caseless_accents():
+    assert normalize_caseless('Sebastián Pérez') == 'sebastian perez'
+    assert normalize_caseless('Kővári') == 'kovari'

@@ -16,9 +16,9 @@ def normalize_caseless(text):
     """Normalize a name so names can be compared with ==.
 
     Replaces every non-word character (such as '.', '-' or '{') with a space,
-    casefolds (lowercases), applies Unicode NFKD normalization, and strips
-    leading/trailing whitespace. Inner spaces are kept, so 'A. Bob' becomes
-    'a  bob'.
+    casefolds (lowercases), applies Unicode NFKD normalization, removes
+    accents, and strips leading/trailing whitespace. Inner spaces are kept,
+    so 'A. Bob' becomes 'a  bob', and 'Dániel' becomes 'daniel'.
 
     Args:
         text: A name or part of a name.
@@ -29,6 +29,9 @@ def normalize_caseless(text):
     text = re.sub(r'[^\w]', ' ', text)
     # thanks to https://stackoverflow.com/a/29247821
     text = unicodedata.normalize("NFKD", text.casefold())
+    # NFKD splits 'á' into 'a' and a combining accent; drop the accent because
+    # the directory and arXiv don't agree on accents (e.g. 'Daniel' vs 'Dániel')
+    text = ''.join(c for c in text if not unicodedata.combining(c))
     text = text.strip()
     return text
 

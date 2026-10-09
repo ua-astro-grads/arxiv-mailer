@@ -1,6 +1,8 @@
 """Step 2: fetch the astro-ph RSS feed and keep postings by our people."""
 import datetime
 import logging
+import re
+import unicodedata
 
 import feedparser
 from bs4 import BeautifulSoup
@@ -11,10 +13,57 @@ from stewarxiv.names import Author, approximate_name_lookup
 
 log = logging.getLogger(__name__)
 
+# LaTeX accent commands and the Unicode combining characters they add
+LATEX_ACCENTS = {
+    "'": '\u0301', '`': '\u0300', '^': '\u0302', '"': '\u0308', '~': '\u0303',
+    '=': '\u0304', '.': '\u0307', 'u': '\u0306', 'v': '\u030c', 'H': '\u030b',
+    'c': '\u0327', 'k': '\u0328', 'r': '\u030a', 'd': '\u0323', 'b': '\u0331',
+}
+# LaTeX commands for letters that aren't an accent on an ASCII letter
+LATEX_LETTERS = {
+    'ss': 'ß', 'aa': 'å', 'AA': 'Å', 'ae': 'æ', 'AE': 'Æ', 'oe': 'œ', 'OE': 'Œ',
+    'i': 'ı', 'j': 'ȷ', 'o': 'ø', 'O': 'Ø', 'l': 'ł', 'L': 'Ł',
+}
+LATEX_LETTER_RE = re.compile(r'\\(ss|aa|AA|ae|AE|oe|OE|[ijoOlL])(?![a-zA-Z])\s*')
+# symbol accents may be followed directly by the letter (\'a); letter accents
+# need braces or a space (\v{s}, \v s) so \c is not read as part of \cdot
+LATEX_ACCENT_RE = re.compile(
+    r"""\\([\'`^"~=.]|[uvHckrdb](?=[\s{]))\s*(?:\{\s*(\w)\s*\}|(\w))""")
+
+def latex_to_unicode(text):
+    """Replace LaTeX accents and special letters with Unicode characters.
+
+    arXiv author names are written in LaTeX, e.g. "Sebasti\\'an P\\'erez".
+    Letter commands (\\o, \\ss, \\i, ...) are replaced first, then each accent
+    command (\\'a, \\v{s}, \\c{C}, ...) becomes its letter plus a combining
+    accent. A dotless i or j under an accent becomes a plain i or j, since
+    \\'{\\i} means í. The result is NFC-normalized so 'a' plus a combining
+    acute is the single character 'á', then any leftover grouping braces
+    are removed. Other LaTeX, such as math, is left as it is.
+
+    Args:
+        text: Text containing LaTeX, e.g. "Sebasti\\'an P\\'erez".
+
+    Returns:
+        str: The text with Unicode letters, e.g. 'Sebastián Pérez'.
+    """
+    text = LATEX_LETTER_RE.sub(lambda m: LATEX_LETTERS[m[1]], text)
+
+    def add_accent(match):
+        accent, braced_letter, bare_letter = match.groups()
+        letter = braced_letter or bare_letter
+        letter = {'ı': 'i', 'ȷ': 'j'}.get(letter, letter)
+        return letter + LATEX_ACCENTS[accent]
+
+    text = LATEX_ACCENT_RE.sub(add_accent, text)
+    text = unicodedata.normalize('NFC', text)
+    return re.sub(r'(?<!\\)[{}]', '', text)
+
 def unpack_feed_entry(post, people, check_affiliation=True):
     """Turn one RSS feed entry into a post, if it's by our people.
 
-    Splits the entry's comma-separated author list and matches each name with
+    Converts LaTeX accents in the author list to Unicode with
+    latex_to_unicode, splits the comma-separated list, and matches each name with
     approximate_name_lookup; entries with no match are dropped. If
     check_affiliation is True, the LaTeX source is then checked with
     gather_affiliation_evidence, and the entry is dropped if the source has
@@ -35,8 +84,8 @@ def unpack_feed_entry(post, people, check_affiliation=True):
     title = post.title
     arxiv_area = post.tags[0]['term']
     # New arXiv RSS feed has a comma-separated author list instead of the a tag
-    author_names = [author.strip() for author in
-        BeautifulSoup(post.author, features="lxml").text.split(',')]
+    author_text = latex_to_unicode(BeautifulSoup(post.author, features="lxml").text)
+    author_names = [author.strip() for author in author_text.split(',')]
     authors = [Author(name, *approximate_name_lookup(name, people)) for name in author_names]
     our_people_score = sum(item.score for item in authors)
     if our_people_score < 1:
