@@ -10,6 +10,16 @@ log = logging.getLogger(__name__)
 
 UOFA_RE = re.compile(r'(university of arizona|steward observatory|arizona\.edu|lbto\.org|gmto\.org)', flags=re.IGNORECASE)
 
+# Stricter than UOFA_RE, for postings with no author match: needs "University
+# of Arizona" next to a department name, in either order, e.g. "Steward
+# Observatory, University of Arizona" or "University of Arizona, Steward
+# Observatory". LaTeX '~' and a line-break '\\' between the words are allowed.
+_UA = r'university[\s~]+of[\s~]+arizona'
+_DEPT = r'(?:steward[\s~]+observatory|department[\s~]+of[\s~]+astronomy)'
+AMBIGUOUS_RE = re.compile(
+    rf'{_DEPT}\W{{0,10}}(?:the[\s~]+)?{_UA}|{_UA}\W{{0,10}}{_DEPT}',
+    flags=re.IGNORECASE)
+
 # Where papers name their authors' institutions. Only these parts are
 # searched, because acknowledgements often list UofA without any UofA author
 # (e.g. SDSS's list of participating institutions).
@@ -54,12 +64,12 @@ def braced_argument(text, start):
         i += 1
     return text[start:]
 
-def evidence_in_texfile(fh):
+def evidence_in_texfile(fh, pattern=UOFA_RE):
     """Count mentions of UofA affiliations in the author block of one LaTeX file.
 
     Decodes the file, skips lines starting with '%' (LaTeX comments), and
-    counts UOFA_RE matches ('University of Arizona', 'Steward Observatory',
-    'arizona.edu', 'lbto.org', 'gmto.org') in two places: the front matter
+    counts matches of pattern (by default UOFA_RE: 'University of Arizona',
+    'Steward Observatory', 'arizona.edu', 'lbto.org', 'gmto.org') in two places: the front matter
     before the first \\begin{abstract}, \\abstract or \\maketitle, and the
     arguments of author and affiliation commands (AFFILIATION_CMD_RE) after
     it. A file with no abstract or \\maketitle, such as one pulled in with
@@ -68,6 +78,7 @@ def evidence_in_texfile(fh):
 
     Args:
         fh: Binary file object of a .tex file, decoded as UTF-8.
+        pattern: Compiled regex to count.
 
     Returns:
         int: Number of matches.
@@ -79,13 +90,13 @@ def evidence_in_texfile(fh):
     text = ''.join(line for line in lines if not line.startswith('%'))
     end = FRONT_MATTER_END_RE.search(text)
     front_end = end.start() if end else 0
-    evidence = len(UOFA_RE.findall(text[:front_end]))
+    evidence = len(pattern.findall(text[:front_end]))
     for command in AFFILIATION_CMD_RE.finditer(text, front_end):
-        evidence += len(UOFA_RE.findall(braced_argument(text, command.end())))
+        evidence += len(pattern.findall(braced_argument(text, command.end())))
     return evidence
 
 
-def gather_affiliation_evidence(arxiv_id):
+def gather_affiliation_evidence(arxiv_id, pattern=UOFA_RE):
     """Count UofA affiliation mentions in a posting's LaTeX source.
 
     Downloads the source from https://arxiv.org/e-print/<arxiv_id>, opens it
@@ -97,10 +108,11 @@ def gather_affiliation_evidence(arxiv_id):
 
     Args:
         arxiv_id: arXiv identifier, e.g. '2610.00462'.
+        pattern: Compiled regex to count, passed to evidence_in_texfile.
 
     Returns:
         tuple[int, bool]: (evidence, success). evidence is the total number
-        of matches; success is False if the source couldn't be downloaded or
+        of matches of pattern; success is False if the source couldn't be downloaded or
         read.
     """
     url = f'https://arxiv.org/e-print/{arxiv_id}'
@@ -114,7 +126,7 @@ def gather_affiliation_evidence(arxiv_id):
         texfiles = [m for m in archive.getmembers() if m.name.lower().endswith('.tex')]
         for info in texfiles:
             fh = archive.extractfile(info)
-            evidence += evidence_in_texfile(fh)
+            evidence += evidence_in_texfile(fh, pattern)
         gather_success = True
         log.info(f'Found {evidence=} for {arxiv_id=}')
     except Exception as e:
