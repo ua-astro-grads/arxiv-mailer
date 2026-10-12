@@ -11,7 +11,8 @@ PEOPLE = {('Smith', 'Jane'): {'name': 'Jane Smith'}}
 
 
 def tex(text):
-    return io.BytesIO(text.encode())
+    """A file with the line as an author affiliation, the only place evidence is counted."""
+    return io.BytesIO(('\\affiliation{' + text + '}\n').encode())
 
 
 @pytest.mark.parametrize('line', [
@@ -20,11 +21,11 @@ def tex(text):
     'Steward~Observatory, The University~of~Arizona',
     r'Steward Observatory \\ University of Arizona',
     'steward observatory, university of arizona',
-    r'\affiliation{University of Arizona, Steward Observatory, 933 N Cherry Ave}',
+    'University of Arizona, Steward Observatory, 933 N Cherry Ave',
     'University of Arizona, Department of Astronomy',
 ])
 def test_ambiguous_re_hits(line):
-    assert evidence_in_texfile(tex(line + '\n'), AMBIGUOUS_RE) == 1
+    assert evidence_in_texfile(tex(line), AMBIGUOUS_RE) == 1
 
 
 @pytest.mark.parametrize('line', [
@@ -36,11 +37,11 @@ def test_ambiguous_re_hits(line):
     'Tucson: University of Arizona Press, 1985',
 ])
 def test_ambiguous_re_misses(line):
-    assert evidence_in_texfile(tex(line + '\n'), AMBIGUOUS_RE) == 0
+    assert evidence_in_texfile(tex(line), AMBIGUOUS_RE) == 0
 
 
 def test_default_pattern_is_uofa_re():
-    assert evidence_in_texfile(tex('jdoe@arizona.edu\n')) == 1
+    assert evidence_in_texfile(tex('jdoe@arizona.edu')) == 1
 
 
 def make_entry(author):
@@ -104,3 +105,9 @@ def test_matched_post_not_ambiguous():
                            return_value=(1, True)):
         out = feed.unpack_feed_entry(make_entry('Jane Smith'), PEOPLE)
     assert out['ambiguous'] is False
+
+
+def test_ambiguous_re_ignores_acknowledgements():
+    text = ('\\begin{abstract}x\\end{abstract}\n'
+            'Funding from SDSS: Steward Observatory, University of Arizona.\n')
+    assert evidence_in_texfile(io.BytesIO(text.encode()), AMBIGUOUS_RE) == 0
